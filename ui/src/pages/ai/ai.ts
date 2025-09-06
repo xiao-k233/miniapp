@@ -120,7 +120,7 @@ const ai = defineComponent({
         },
 
         async sendMessage(userMessage: string) {
-            if (!this.canSendMessage || !userMessage?.trim()) return;
+            if (!this.aiInitialized || this.isStreaming || !userMessage?.trim()) return;
             userMessage = userMessage.trim();
 
             this.streamingContent = '';

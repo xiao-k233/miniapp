@@ -217,7 +217,7 @@ void AI::deleteConversation(const std::string &conversationId)
     if (conversationId.empty())
         return;
 
-    std::lock_guard<std::mutex> conversationLock(conversationMutex);
+    std::unique_lock<std::mutex> conversationLock(conversationMutex);
     conversationManager.deleteConversation(conversationId);
 
     std::unique_lock<std::shared_mutex> stateLock(stateMutex);
@@ -233,6 +233,7 @@ void AI::deleteConversation(const std::string &conversationId)
         {
             this->conversationId.clear();
             nodeMap.clear();
+            conversationLock.unlock();
             stateLock.unlock();
             createConversation("默认对话");
         }
