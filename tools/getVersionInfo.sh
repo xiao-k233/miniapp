@@ -229,7 +229,7 @@ function getSqlite3Header() {
     local sqliteYear=$(echo "$sqliteVer" | cut -d' ' -f1)
     sqliteVer=$(echo "$sqliteVer" | cut -d' ' -f2)
 
-    local sqliteNumVer=$(echo "$sqliteVer" | awk -F. '{printf "%d%03d%03d", $1, $2, $3}')
+    local sqliteNumVer=$(echo "$sqliteVer" | awk -F. '{printf "%d%02d%02d00", $1, $2, $3}')
 
     log_info "Starting download of sqlite3-$sqliteVer header files..."
 
