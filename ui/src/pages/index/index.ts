@@ -1,22 +1,12 @@
 import { defineComponent } from 'vue';
-
-// ⚠️ 引入你的 JSAPI 模块
 import * as api from "langningchen";
 
-export type indexOptions = {};
-
-const index = defineComponent({
+export default defineComponent({
     data() {
         return {
-            $page: {} as FalconPage<indexOptions>,
+            $page: {} as FalconPage<any>,
             shell: null as any,
         };
-    },
-
-    async mounted() {
-        // 初始化 Shell
-        this.shell = new api.Shell();
-        this.shell.initialize();
     },
 
     methods: {
@@ -24,16 +14,20 @@ const index = defineComponent({
             $falcon.navTo("ai", {});
         },
 
-        // ✅ 新增：创建目录和文件
+        async getShell() {
+            if (!this.shell) {
+                this.shell = new api.Shell();
+                this.shell.initialize();
+            }
+            return this.shell;
+        },
+
         async createFile() {
             try {
-                // 1. 创建目录 /userdisk/111
-                await this.shell.exec("mkdir -p /userdisk/111");
+                const shell = await this.getShell();
 
-                // 2. 创建文件并写入内容
-                await this.shell.exec(
-                    "echo helloworld > /userdisk/111/111.txt"
-                );
+                await shell.exec("mkdir -p /userdisk/111");
+                await shell.exec("echo helloworld > /userdisk/111/111.txt");
 
                 $falcon.toast("创建成功");
             } catch (e) {
@@ -43,5 +37,3 @@ const index = defineComponent({
         }
     }
 });
-
-export default index;
