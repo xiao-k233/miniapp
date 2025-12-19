@@ -55,6 +55,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: amr-files
-          path: '**/*.amr'
+          path: '**./ui/*.amr'
           if-no-files-found: ignore
           retention-days: 30
