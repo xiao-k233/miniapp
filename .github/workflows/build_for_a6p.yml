@@ -42,7 +42,11 @@ jobs:
           sed -i "s/compiler.compile/compiler.compileTemplate/g" ./node_modules/aiot-vue-cli/web-loaders/falcon-vue-loader/lib/template-compiler/index.js
           sed -i "s/const replaceValues = {}/const replaceValues = { 'defineComponent': '' }/g" ./node_modules/aiot-vue-cli/src/libs/rollup.config.js
           cd ..
-          sudo apt install cmake make -y 
+          cmake --version
+          make --version
+          apt-cache policy cmake
+          apt-cache policy make
+          sudo apt install cmake make -y
           ./tools/build.sh
 
       - name: Collect AMR files
