@@ -23,6 +23,7 @@
             <text class="section-title">可用功能</text>
             
             <div class="item"><text class="item-text" @click="openAi">AI 助手</text></div>
+            <div class="item"><text class="item-text" @click="createFile">测试1827377272727</text></div>            
         </div>
     </scroller>
 </template>
