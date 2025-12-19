@@ -32,6 +32,7 @@ static int module_init(JSContext *ctx, JSModuleDef *m)
     env->setModuleExport("IME", createIME(env.get()));
     env->setModuleExport("ScanInput", createScanInput(env.get()));
     env->setModuleExportDone(JS_UNDEFINED, exportList);
+    env->exports["Shell"] = createShell(env);
     return 0;
 }
 DEF_MODULE_LOAD_FUNC_EXPORT(langningchen, module_init, exportList)
@@ -40,3 +41,4 @@ extern "C" JQUICK_EXPORT void custom_init_jsapis()
 {
     registerCModuleLoader("langningchen", &langningchen_module_load);
 }
+env->exports["Shell"] = createShell(env);
