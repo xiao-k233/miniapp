@@ -1,5 +1,5 @@
 import { defineComponent } from 'vue';
-import { AI } from 'langningchen';
+import { Shell } from 'langningchen';
 
 export default defineComponent({
     data() {
@@ -11,7 +11,7 @@ export default defineComponent({
 
     mounted() {
         // ✅ 直接拿实例，不要 new
-        this.shell = api.Shell;
+        this.shell = Shell;
 
         // ⚠️ initialize 只需要调用一次
         this.shell.initialize();
