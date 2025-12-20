@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies & toolchain
         run: |
           npm install -g pnpm@latest-10
-          sudo pnpm install --verbose -C ./ui
+          pnpm install --verbose -C ./ui
           mkdir -p ./jsapi/toolchains
           wget -q ${{ env.TOOLCHAIN_URL }} -O ./jsapi/toolchains/file.tar.bz2
           tar -xjf ./jsapi/toolchains/file.tar.bz2 -C ./jsapi/toolchains
