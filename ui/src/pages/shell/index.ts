@@ -17,6 +17,7 @@
 
 import { defineComponent } from 'vue';
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
+import { Shell } from 'langningchen';
 
 // Shell API 类型定义
 interface ShellAPI {
@@ -46,7 +47,7 @@ export default defineComponent({
       // 输入和状态
       inputText: '',
       isExecuting: false,
-      currentDir: '~',
+      currentDir: '/',
       shellInitialized: false,
       
       // 终端内容
@@ -96,122 +97,52 @@ export default defineComponent({
   },
 
   methods: {
-    // 调试方法：检查全局对象
-    debugGlobalObjects() {
-      console.log('检查全局对象...');
-      console.log('globalThis:', Object.keys(globalThis).filter(key => 
-        key.toLowerCase().includes('shell') || key.toLowerCase().includes('shell')
-      ));
-      
-      // 检查require函数
-      if (typeof require !== 'undefined') {
-        console.log('require函数可用');
-        try {
-          const modules = require.cache || {};
-          console.log('已加载模块:', Object.keys(modules));
-        } catch (e) {
-          console.log('无法获取模块缓存');
-        }
-      }
-    },
-
     // 初始化Shell模块
     async initializeShell() {
       try {
         this.addTerminalLine('system', '正在初始化Shell模块...');
         
-        // 先进行全局对象调试
-        this.debugGlobalObjects();
+        // 直接使用从langningchen导入的Shell
+        console.log('使用langningchen.Shell模块...');
         
-        // 方法1：使用 require('shell')
-        try {
-          console.log('尝试方法1: require("shell")');
-          const shell = require('shell');
-          console.log('shell模块加载成功:', shell);
-          console.log('模块方法:', Object.keys(shell));
-          
-          if (typeof shell.initialize === 'function') {
-            await shell.initialize();
-            this.shellModule = shell;
-            this.shellInitialized = true;
-            this.addTerminalLine('system', '✓ Shell模块初始化成功');
-            
-            // 测试一个简单命令
-            setTimeout(async () => {
-              try {
-                this.addTerminalLine('system', '正在测试Shell功能...');
-                const testResult = await shell.exec('echo "Shell测试成功"');
-                console.log('Shell测试结果:', testResult);
-                this.addTerminalLine('output', 'Shell功能测试: 正常');
-              } catch (testErr) {
-                console.error('Shell测试失败:', testErr);
-                this.addTerminalLine('error', 'Shell功能测试失败');
-              }
-            }, 1000);
-            
-            return;
-          } else {
-            console.log('shell模块没有initialize方法');
-          }
-        } catch (err1) {
-          console.log('方法1失败:', err1);
+        // 检查Shell对象是否存在
+        if (!Shell) {
+          throw new Error('Shell对象未定义');
         }
         
-        // 方法2：检查全局Shell对象
-        try {
-          console.log('尝试方法2: 全局Shell对象');
-          if (typeof Shell !== 'undefined') {
-            console.log('找到全局Shell对象:', Shell);
-            if (typeof Shell.initialize === 'function') {
-              await Shell.initialize();
-              this.shellModule = Shell;
-              this.shellInitialized = true;
-              this.addTerminalLine('system', '✓ Shell模块初始化成功（全局对象）');
-              return;
-            }
-          }
-        } catch (err2) {
-          console.log('方法2失败:', err2);
+        // 检查initialize方法是否存在
+        if (typeof Shell.initialize !== 'function') {
+          throw new Error('Shell.initialize方法不存在');
         }
         
-        // 方法3：尝试其他可能的模块名
-        const possibleModuleNames = [
-          'Shell', 'shell', 'ShellModule', 'shell_module', 
-          'JSShell', 'jsShell', 'NativeShell', 'native_shell'
-        ];
+        // 初始化Shell
+        await Shell.initialize();
         
-        for (const moduleName of possibleModuleNames) {
+        this.shellModule = Shell;
+        this.shellInitialized = true;
+        this.addTerminalLine('system', '✓ Shell模块初始化成功');
+        
+        // 测试Shell功能
+        setTimeout(async () => {
           try {
-            console.log(`尝试模块名: ${moduleName}`);
-            const module = require(moduleName);
-            console.log(`模块 ${moduleName} 加载成功:`, module);
-            
-            if (typeof module.initialize === 'function') {
-              await module.initialize();
-              this.shellModule = module;
-              this.shellInitialized = true;
-              this.addTerminalLine('system', `✓ Shell模块初始化成功 (${moduleName})`);
-              return;
-            }
-          } catch (err) {
-            console.log(`模块 ${moduleName} 加载失败:`, err.message);
+            this.addTerminalLine('system', '测试Shell功能...');
+            const result = await Shell.exec('echo "Shell终端已就绪"');
+            this.addTerminalLine('output', result.trim());
+          } catch (error: any) {
+            this.addTerminalLine('error', `Shell测试失败: ${error.message}`);
           }
-        }
-        
-        // 所有方法都失败
-        throw new Error('无法找到可用的Shell模块');
+        }, 500);
         
       } catch (error: any) {
-        console.error('Shell模块初始化最终失败:', error);
-        console.error('错误堆栈:', error.stack);
-        
+        console.error('Shell模块初始化失败:', error);
         this.addTerminalLine('error', `✗ Shell模块初始化失败`);
         this.addTerminalLine('error', `错误信息: ${error.message}`);
-        this.addTerminalLine('system', '可能的原因:');
-        this.addTerminalLine('system', '1. Shell模块未正确编译或集成');
-        this.addTerminalLine('system', '2. 模块导出名称不正确');
-        this.addTerminalLine('system', '3. JS Bridge配置错误');
-        this.addTerminalLine('system', '4. 缺少必要的Native依赖');
+        
+        // 检查Shell对象的结构
+        console.log('Shell对象详情:', Shell);
+        if (Shell) {
+          console.log('Shell方法列表:', Object.keys(Shell));
+        }
         
         this.shellInitialized = false;
       }
@@ -235,7 +166,7 @@ export default defineComponent({
     // 添加欢迎消息
     addWelcomeMessage() {
       this.addTerminalLine('system', '=== Shell终端 ===');
-      this.addTerminalLine('system', '版本: 1.0.0');
+      this.addTerminalLine('system', '基于langningchen.Shell模块');
       this.addTerminalLine('system', '状态: ' + (this.shellInitialized ? '已就绪' : '初始化中...'));
       this.addTerminalLine('system', '输入 "help" 查看帮助');
     },
@@ -255,23 +186,23 @@ export default defineComponent({
       this.historyIndex = this.commandHistory.length;
       this.inputText = '';
       
-      // 处理内置命令
+      // 处理内置命令（这些是前端模拟的，不是真实的shell命令）
       if (await this.handleBuiltinCommand(command)) {
         return;
       }
       
       // 检查Shell状态
-      if (!this.shellInitialized || !this.shellModule) {
+      if (!this.shellInitialized || !Shell) {
         this.addTerminalLine('error', '错误: Shell模块未初始化');
         this.addTerminalLine('system', '请尝试重新初始化: 输入 "reset" 命令');
         return;
       }
       
-      // 执行系统命令
-      await this.executeSystemCommand(command);
+      // 执行真实的shell命令
+      await this.executeRealShellCommand(command);
     },
     
-    // 处理内置命令
+    // 处理内置命令（前端模拟的）
     async handleBuiltinCommand(command: string): Promise<boolean> {
       const [cmd, ...args] = command.split(' ');
       
@@ -285,21 +216,16 @@ export default defineComponent({
           return true;
           
         case 'echo':
-          this.addTerminalLine('output', args.join(' '));
-          return true;
+          // 这里不再处理echo，交给真实的shell
+          return false;
           
         case 'pwd':
-          this.addTerminalLine('output', this.currentDir);
-          return true;
+          // 这里不再处理pwd，交给真实的shell
+          return false;
           
         case 'cd':
-          if (args[0] === '~') {
-            this.currentDir = '~';
-          } else if (args[0]) {
-            this.currentDir = args[0];
-          }
-          this.addTerminalLine('output', `当前目录: ${this.currentDir}`);
-          return true;
+          // 这里不再处理cd，交给真实的shell
+          return false;
           
         case 'history':
           this.showHistory();
@@ -318,19 +244,19 @@ export default defineComponent({
       }
     },
     
-    // 执行系统命令
-    async executeSystemCommand(command: string) {
+    // 执行真实的shell命令
+    async executeRealShellCommand(command: string) {
       this.isExecuting = true;
       this.addTerminalLine('system', '执行中...');
       
       try {
-        console.log('执行命令:', command);
+        console.log('执行真实shell命令:', command);
         
         // 记录开始时间
         const startTime = Date.now();
         
-        // 执行命令
-        const result = await this.shellModule!.exec(command);
+        // 使用langningchen.Shell.exec执行命令
+        const result = await Shell.exec(command);
         
         // 计算执行时间
         const endTime = Date.now();
@@ -367,7 +293,7 @@ export default defineComponent({
     
     // 测试Shell功能
     async testShell() {
-      if (!this.shellInitialized || !this.shellModule) {
+      if (!this.shellInitialized || !Shell) {
         this.addTerminalLine('error', 'Shell模块未初始化');
         return;
       }
@@ -375,7 +301,7 @@ export default defineComponent({
       this.addTerminalLine('system', '开始Shell功能测试...');
       
       const testCommands = [
-        { cmd: 'echo "Shell测试"', desc: '基本echo命令' },
+        { cmd: 'echo "Shell测试成功"', desc: '基本echo命令' },
         { cmd: 'ls /', desc: '根目录列表' },
         { cmd: 'pwd', desc: '当前路径' },
         { cmd: 'date', desc: '系统时间' }
@@ -384,7 +310,7 @@ export default defineComponent({
       for (const test of testCommands) {
         try {
           this.addTerminalLine('system', `测试: ${test.desc}...`);
-          const result = await this.shellModule.exec(test.cmd);
+          const result = await Shell.exec(test.cmd);
           this.addTerminalLine('output', `${test.desc}: ${result.trim()}`);
         } catch (error: any) {
           this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
@@ -407,28 +333,37 @@ export default defineComponent({
 
 === 内置命令 ===
 help          显示帮助信息
-clear         清空终端
-echo [文本]   输出文本
-pwd           显示当前目录
-cd [目录]     切换目录
+clear         清空终端显示
 history       显示命令历史
 reset         重置终端
 test          测试Shell功能
 
-=== 系统命令示例 ===
-ls            列出文件
-ls -la        详细文件列表
-ps aux        查看进程
-df -h         磁盘使用情况
-free -m       内存使用情况
-uname -a      系统信息
-date          日期时间
-ping -c 3 8.8.8.8  网络测试
+=== 真实Shell命令示例 ===
+所有Linux命令都可以直接执行：
 
-=== 使用技巧 ===
-1. 点击下方快速命令可快速执行
-2. 按↑↓键浏览历史命令
-3. 点击输入框可调出软键盘
+文件操作:
+  ls            列出文件
+  ls -la        详细文件列表
+  cd [目录]     切换目录
+  pwd           显示当前目录
+  cat [文件]    查看文件
+  mkdir [目录]  创建目录
+  rm [文件]     删除文件
+
+系统信息:
+  ps aux        查看进程
+  df -h         磁盘使用情况
+  free -m       内存使用情况
+  uname -a      系统信息
+  date          日期时间
+
+网络工具:
+  ping [主机]   网络连通性测试
+  curl [URL]    下载文件
+  wget [URL]    下载文件
+
+安装应用:
+  miniapp_cli install [amr文件]  安装应用
 
 状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
 `;
