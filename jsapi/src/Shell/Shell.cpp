@@ -4,44 +4,41 @@
 #include <memory>
 #include <array>
 #include <stdexcept>
-#include <vector>
-#include <cstring>
+#include <cstdlib>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <memory>
 
-ShellResult Shell::exec(const std::string& cmd) {
-    ShellResult result;
+std::string Shell::exec(const std::string& cmd)
+{
     std::array<char, 256> buffer;
-    
-    // 使用 popen 执行命令
+    std::string result;
+
     FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) {
-        result.exitCode = -1;
-        result.error = "popen failed";
-        return result;
-    }
-    
-    // 读取输出
-    std::string output;
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-        output += buffer.data();
-    }
-    
-    // 获取退出码
-    int status = pclose(pipe);
-    if (WIFEXITED(status)) {
-        result.exitCode = WEXITSTATUS(status);
-    } else {
-        result.exitCode = -1;
-    }
-    
-    result.output = output;
+    if (!pipe)
+        throw std::runtime_error("popen failed");
+
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
+        result += buffer.data();
+
+    pclose(pipe);
     return result;
 }
 
-ShellResult Shell::exec(const std::string& cmd, const std::vector<std::string>& args) {
-    // 构建带参数的命令
-    std::string fullCmd = cmd;
-    for (const auto& arg : args) {
-        fullCmd += " " + arg;
-    }
-    return exec(fullCmd);
+std::tuple<std::string, int> Shell::execWithExitCode(const std::string& cmd)
+{
+    std::array<char, 256> buffer;
+    std::string result;
+    
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe)
+        throw std::runtime_error("popen failed");
+
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
+        result += buffer.data();
+
+    int status = pclose(pipe);
+    int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    
+    return std::make_tuple(result, exitCode);
 }

@@ -19,6 +19,7 @@ public:
 
     void initialize(JQFunctionInfo& info);
     void exec(JQAsyncInfo& info);
+    void execDetailed(JQAsyncInfo& info);  // 新增方法声明
 };
 
 JSValue createShell(JQModuleEnv* env);
