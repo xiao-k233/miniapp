@@ -18,14 +18,24 @@
 -->
 
 <template>
-    <scroller class="container" scroll-direction="vertical" :show-scrollbar="true">
-        <div class="section">
-            <text class="section-title">可用功能</text>
-            
-            <div class="item"><text class="item-text" @click="openAi">AI 助手</text></div>
-            <div class="item"><text class="item-text" @click="shelldebug">更新软件</text></div>            
+    <div class="container">
+        <!-- 输出内容区 -->
+        <scroller class="output-area" scroll-direction="vertical" :show-scrollbar="true">
+            <text class="output-text">{{ output }}</text>
+        </scroller>
+
+        <!-- 输入控制区 -->
+        <div class="input-bar">
+            <text class="prompt">></text>
+            <div class="input-trigger" @click="openInput">
+                <text class="input-placeholder">{{ command || '点击输入命令...' }}</text>
+            </div>
+            <div class="btn-group">
+                <text class="btn run-btn" @click="runCommand">{{ busy ? '...' : '执行' }}</text>
+                <text class="btn clear-btn" @click="clearOutput">清屏</text>
+            </div>
         </div>
-    </scroller>
+    </div>
 </template>
 
 <style lang="less" scoped>
@@ -36,4 +46,3 @@
 import index from './index';
 export default index;
 </script>
-
