@@ -1,18 +1,43 @@
 #pragma once
+
 #include <string>
 #include <functional>
+#include <memory>
+#include <vector>
+#include <mutex>
 
 class Shell {
 public:
-    // 执行命令，返回输出
+    Shell();
+    ~Shell();
+    
+    // 传统的一次性执行
     std::string exec(const std::string& cmd);
-
-    // 执行命令，带环境变量
     std::string exec(const std::string& cmd, const std::string& env);
-
-    // 执行命令，返回输出和状态码
     std::pair<std::string, int> execWithStatus(const std::string& cmd);
-
-    // 异步执行命令，输出通过回调返回
     void execAsync(const std::string& cmd, std::function<void(const std::string&)> onOutput);
+    
+    // 新的交互式Shell功能
+    bool startInteractive(const std::string& shellPath = "/bin/sh");
+    bool writeToShell(const std::string& data);
+    void close();
+    bool isRunning() const;
+    
+    // 设置输出回调
+    void setOutputCallback(std::function<void(const std::string&)> callback);
+    
+private:
+    // 交互式Shell相关
+    int masterFd = -1;
+    int slaveFd = -1;
+    pid_t childPid = -1;
+    bool interactiveMode = false;
+    std::function<void(const std::string&)> outputCallback;
+    
+    // 线程管理
+    std::unique_ptr<std::thread> readThread;
+    std::mutex ioMutex;
+    
+    void readOutputLoop();
+    bool setupPty();
 };
