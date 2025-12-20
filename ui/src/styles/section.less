@@ -5,12 +5,7 @@
     width: 100%;
     height: 100%;
     padding: 5px;
-    background-color: #000000;
 }
-
-/* =======================
-   Section
-======================= */
 
 .section {
     margin-bottom: 15px;
@@ -27,10 +22,6 @@
     padding-bottom: 2px;
 }
 
-/* =======================
-   Item
-======================= */
-
 .item {
     min-height: 24px;
     display: flex;
@@ -46,47 +37,30 @@
     color: #ffffff;
 }
 
-/* =======================
-   Input / Textarea
-======================= */
-
 .item-input,
 .item-textarea {
     flex: 1;
+
+    height: 24px;
     background-color: #111111;
     color: #ffffff;
     border-width: 1px;
     border-color: #444444;
     font-size: 18px;
     line-height: 20px;
-    padding: 4px;
+    padding: 2px;
     border-radius: 3px;
 }
 
-/* 单行输入 */
-.item-input {
-    height: 24px;
-}
-
-/* 多行输出（日志 / 文件内容） */
-.item-textarea {
-    min-height: 80px;
-    max-height: 260px;
-    overflow-y: scroll;          // ✅ 可滚动
-    white-space: pre-wrap;       // ✅ 保留换行
-    word-break: break-all;       // ✅ 长行不炸 UI
-}
-
-/* 禁用态（只读输出） */
 .item-input-disabled {
     background-color: #222222;
-    color: #cccccc;
+    color: #888888;
     border-color: #333333;
 }
 
-/* =======================
-   Buttons
-======================= */
+.item-textarea {
+    min-height: 80px;
+}
 
 .btn {
     height: 24px;
@@ -122,40 +96,10 @@
     color: #ffffff;
 }
 
-/* 按钮区域 */
 .btn-area {
     height: 24px;
     width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-/* =======================
-   File Output Enhancement
-======================= */
-
-/* 文件标题 */
-.file-title {
-    font-size: 18px;
-    color: #17a2b8;
-    margin-top: 6px;
-}
-
-/* shell / 执行日志 */
-.shell-log {
-    font-size: 16px;
-    color: #aaaaaa;
-    background-color: #111111;
-    border-width: 1px;
-    border-color: #333333;
-    border-radius: 3px;
-    padding: 6px;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
-
-/* 错误高亮（可选） */
-.shell-error {
-    color: #ff5555;
 }
