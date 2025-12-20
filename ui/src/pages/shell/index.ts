@@ -1,11 +1,11 @@
 import { defineComponent } from 'vue';
-import { Shell } from 'langningchen';
+import { Shell } from 'langningchen'; // 使用正确的模块路径
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils'; 
 
 export default defineComponent({
     data() {
         return {
-            shell: Shell, // 直接使用已经实例化的Shell对象
+            shell: new Shell() as any,
             command: "",
             output: "--- Shell Ready ---\n",
             busy: false,
@@ -13,11 +13,9 @@ export default defineComponent({
     },
 
     mounted() {
-        setTimeout(() => {
-            this.shell.initialize();
-            console.log("Shell after initialization:", this.shell);
-            console.log("Shell exec method exists:", typeof this.shell.exec === "function");
-        }, 1000);
+        this.shell.initialize(this); // 传入当前 Vue 组件实例
+        console.log('Shell initialized:', this.shell);
+        console.log('Shell exec method exists:', typeof this.shell.exec === 'function');
     },
 
     methods: {
