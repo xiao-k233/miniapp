@@ -66,7 +66,7 @@
 </template>
 
 <style lang="less" scoped>
-@import url('./index.less');
+@import url('shell.less');
 </style>
 
 <script>
