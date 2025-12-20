@@ -4,7 +4,7 @@
     <div 
       class="output-area"
       ref="outputRef"
-      @click="() => $refs.cmdInput?.focus()"
+      @click="focusInput"
     >
       <div 
         v-for="(item, index) in history"
@@ -63,14 +63,13 @@
     </div>
     
     <!-- 快速命令按钮 -->
-    <div class="quick-commands">
+    <div class="quick-commands" v-if="!isExecuting">
       <span class="quick-title">快速命令:</span>
       <button 
         v-for="cmd in quickCommands"
         :key="cmd.label"
         class="quick-btn"
         @click="inputCommand = cmd.command; executeCommand()"
-        :disabled="isExecuting"
       >
         {{ cmd.label }}
       </button>
@@ -91,7 +90,11 @@ export default defineComponent({
         { label: 'pwd', command: 'pwd' },
         { label: 'date', command: 'date' },
         { label: 'ps', command: 'ps aux' },
-        { label: 'clear', command: 'clear' }
+        { label: '网络', command: 'ping -c 3 8.8.8.8' },
+        { label: '磁盘', command: 'df -h' },
+        { label: '内存', command: 'free -m' },
+        { label: '系统', command: 'uname -a' },
+        { label: '清屏', command: 'clear' }
       ]
     };
   }

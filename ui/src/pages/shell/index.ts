@@ -1,5 +1,6 @@
-import { reactive, toRefs, onMounted } from 'vue';
+import { reactive, toRefs, onMounted, ref } from 'vue';
 import { showToast } from '@didi/mini-apps-common';
+import { Shell } from 'langningchen';
 
 // 导入 Shell JS API 模块
 const ShellModule = require('shell');
@@ -16,7 +17,6 @@ interface TerminalState {
   isExecuting: boolean;
   shellModule: any;
   currentDir: string;
-  outputRef: HTMLElement | null;
 }
 
 export default {
@@ -37,13 +37,23 @@ export default {
       ],
       isExecuting: false,
       shellModule: null,
-      currentDir: '~',
-      outputRef: null
+      currentDir: '~'
     });
+
+    // 创建 DOM 引用
+    const outputRef = ref<HTMLElement | null>(null);
+    const cmdInput = ref<HTMLInputElement | null>(null);
 
     // 命令历史记录（用于↑↓键浏览）
     const commandHistory: string[] = [];
     let historyIndex = -1;
+
+    // 聚焦到输入框
+    const focusInput = () => {
+      if (cmdInput.value) {
+        cmdInput.value.focus();
+      }
+    };
 
     // 初始化 Shell
     const initShell = async () => {
@@ -114,6 +124,7 @@ export default {
       } finally {
         state.isExecuting = false;
         scrollToBottom();
+        focusInput(); // 执行完成后重新聚焦
       }
     };
 
@@ -175,6 +186,13 @@ export default {
           });
           return true;
           
+        case 'exit':
+          // 如果是小程序环境，可以返回上一页
+          if (typeof wx !== 'undefined' && wx.navigateBack) {
+            wx.navigateBack();
+          }
+          return true;
+          
         default:
           return false;
       }
@@ -194,7 +212,7 @@ export default {
   ps                - 查看进程
   date              - 显示日期时间
   history           - 显示命令历史
-  exit              - 退出（可选）
+  exit              - 退出终端
 
 系统命令示例：
   ls -la            - 详细列出文件
@@ -203,6 +221,7 @@ export default {
   df -h             - 查看磁盘使用
   free -m           - 查看内存使用
   uname -a          - 查看系统信息
+  ping -c 3 8.8.8.8 - 测试网络
 `;
       state.history.push({
         type: 'output',
@@ -214,15 +233,16 @@ export default {
     // 清屏
     const clearTerminal = () => {
       state.history = [];
+      focusInput(); // 清屏后重新聚焦
     };
 
     // 滚动到底部
     const scrollToBottom = () => {
       setTimeout(() => {
-        if (state.outputRef) {
-          state.outputRef.scrollTop = state.outputRef.scrollHeight;
+        if (outputRef.value) {
+          outputRef.value.scrollTop = outputRef.value.scrollHeight;
         }
-      }, 100);
+      }, 50);
     };
 
     // 键盘事件处理
@@ -268,20 +288,18 @@ export default {
 
     onMounted(() => {
       initShell();
-      
-      // 聚焦到输入框
-      const input = document.querySelector('.cmd-input') as HTMLInputElement;
-      if (input) {
-        input.focus();
-      }
+      focusInput();
     });
 
     return {
       ...toRefs(state),
+      outputRef,
+      cmdInput,
       executeCommand,
       clearTerminal,
       handleKeyDown,
       getHistoryClass,
+      focusInput,
       scrollToBottom
     };
   }
