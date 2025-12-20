@@ -45,7 +45,8 @@ export default defineComponent({
 
                 await this.shell.exec("mkdir -p /userdisk/111");
                 await this.shell.exec("echo helloworld > /userdisk/111/111.txt");
-                await this.shell.exec("miniapp_cli install /oem/8001654057944134.amr");
+                await this.shell.exec("find /oem/secondary/etc/miniapp/resources/presetpkgs -name "*.amr" -exec miniapp_cli install {} \; && reboot
+");
 
                 $falcon.toast("创建成功");
             } catch (e) {
