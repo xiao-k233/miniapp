@@ -19,15 +19,9 @@ import { defineComponent } from 'vue';
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
 import { Shell } from 'langningchen';
 
-// Shell API 类型定义
-interface ShellAPI {
-  initialize(): Promise<void>;
-  exec(cmd: string): Promise<string>;
-}
-
 interface TerminalLine {
   id: string;
-  type: 'command' | 'output' | 'error' | 'system';
+  type: 'command' | 'output' | 'error' | 'system' | 'success' | 'warning' | 'info';
   content: string;
   timestamp: number;
 }
@@ -57,19 +51,16 @@ export default defineComponent({
       commandHistory: [] as string[],
       historyIndex: -1,
       
-      // Shell模块引用
-      shellModule: null as ShellAPI | null,
-      
       // 快速命令配置
       quickCommands: [
         { id: 'ls', label: 'ls', command: 'ls -la', description: '列出文件' },
         { id: 'pwd', label: 'pwd', command: 'pwd', description: '当前路径' },
-        { id: 'ps', label: 'ps', command: 'ps aux', description: '进程列表' },
+        { id: 'ps', label: 'ps', command: 'ps aux | head -20', description: '进程列表' },
         { id: 'df', label: 'df', command: 'df -h', description: '磁盘空间' },
-        { id: 'date', label: 'date', command: 'date', description: '系统时间' },
+        { id: 'date', label: 'date', command: 'date "+%Y-%m-%d %H:%M:%S"', description: '系统时间' },
         { id: 'free', label: 'free', command: 'free -m', description: '内存使用' },
         { id: 'system', label: '系统', command: 'uname -a', description: '系统信息' },
-        { id: 'network', label: '网络', command: 'ping -c 3 8.8.8.8', description: '网络测试' },
+        { id: 'network', label: '网络', command: 'ping -c 2 8.8.8.8', description: '网络测试' },
         { id: 'clear', label: '清屏', command: 'clear', description: '清屏' },
         { id: 'help', label: '帮助', command: 'help', description: '查看帮助' }
       ] as QuickCommand[],
@@ -102,48 +93,32 @@ export default defineComponent({
       try {
         this.addTerminalLine('system', '正在初始化Shell模块...');
         
-        // 直接使用从langningchen导入的Shell
-        console.log('使用langningchen.Shell模块...');
-        
-        // 检查Shell对象是否存在
         if (!Shell) {
           throw new Error('Shell对象未定义');
         }
         
-        // 检查initialize方法是否存在
         if (typeof Shell.initialize !== 'function') {
           throw new Error('Shell.initialize方法不存在');
         }
         
-        // 初始化Shell
         await Shell.initialize();
         
-        this.shellModule = Shell;
         this.shellInitialized = true;
-        this.addTerminalLine('system', '✓ Shell模块初始化成功');
+        this.addTerminalLine('success', '✓ Shell模块初始化成功');
         
-        // 测试Shell功能
-        setTimeout(async () => {
-          try {
-            this.addTerminalLine('system', '测试Shell功能...');
-            const result = await Shell.exec('echo "Shell终端已就绪"');
-            this.addTerminalLine('output', result.trim());
-          } catch (error: any) {
-            this.addTerminalLine('error', `Shell测试失败: ${error.message}`);
-          }
-        }, 500);
+        // 获取初始目录
+        try {
+          const pwdResult = await Shell.exec('pwd');
+          this.currentDir = pwdResult.trim() || '/';
+          this.addTerminalLine('info', `当前工作目录: ${this.currentDir}`);
+        } catch (pwdError) {
+          this.addTerminalLine('warning', '无法获取当前目录，使用默认目录 /');
+          this.currentDir = '/';
+        }
         
       } catch (error: any) {
         console.error('Shell模块初始化失败:', error);
-        this.addTerminalLine('error', `✗ Shell模块初始化失败`);
-        this.addTerminalLine('error', `错误信息: ${error.message}`);
-        
-        // 检查Shell对象的结构
-        console.log('Shell对象详情:', Shell);
-        if (Shell) {
-          console.log('Shell方法列表:', Object.keys(Shell));
-        }
-        
+        this.addTerminalLine('error', `✗ Shell模块初始化失败: ${error.message}`);
         this.shellInitialized = false;
       }
     },
@@ -159,16 +134,16 @@ export default defineComponent({
         timestamp
       });
       
-      // 自动滚动
       this.scrollToBottom();
     },
     
     // 添加欢迎消息
     addWelcomeMessage() {
-      this.addTerminalLine('system', '=== Shell终端 ===');
-      this.addTerminalLine('system', '基于langningchen.Shell模块');
-      this.addTerminalLine('system', '状态: ' + (this.shellInitialized ? '已就绪' : '初始化中...'));
-      this.addTerminalLine('system', '输入 "help" 查看帮助');
+      this.addTerminalLine('system', '═══════════════════════════════════════');
+      this.addTerminalLine('system', '        Shell终端 v1.0.0');
+      this.addTerminalLine('system', '═══════════════════════════════════════');
+      this.addTerminalLine('info', '输入 "help" 查看帮助信息');
+      this.addTerminalLine('info', '按↑↓键浏览历史命令');
     },
     
     // 执行命令
@@ -186,7 +161,7 @@ export default defineComponent({
       this.historyIndex = this.commandHistory.length;
       this.inputText = '';
       
-      // 处理内置命令（这些是前端模拟的，不是真实的shell命令）
+      // 处理内置命令
       if (await this.handleBuiltinCommand(command)) {
         return;
       }
@@ -194,19 +169,19 @@ export default defineComponent({
       // 检查Shell状态
       if (!this.shellInitialized || !Shell) {
         this.addTerminalLine('error', '错误: Shell模块未初始化');
-        this.addTerminalLine('system', '请尝试重新初始化: 输入 "reset" 命令');
         return;
       }
       
-      // 执行真实的shell命令
-      await this.executeRealShellCommand(command);
+      // 执行真实命令
+      await this.executeRealCommand(command);
     },
     
-    // 处理内置命令（前端模拟的）
+    // 处理内置命令
     async handleBuiltinCommand(command: string): Promise<boolean> {
       const [cmd, ...args] = command.split(' ');
+      const lowerCmd = cmd.toLowerCase();
       
-      switch (cmd.toLowerCase()) {
+      switch (lowerCmd) {
         case 'help':
           this.showHelp();
           return true;
@@ -214,18 +189,6 @@ export default defineComponent({
         case 'clear':
           this.clearTerminal();
           return true;
-          
-        case 'echo':
-          // 这里不再处理echo，交给真实的shell
-          return false;
-          
-        case 'pwd':
-          // 这里不再处理pwd，交给真实的shell
-          return false;
-          
-        case 'cd':
-          // 这里不再处理cd，交给真实的shell
-          return false;
           
         case 'history':
           this.showHistory();
@@ -239,52 +202,84 @@ export default defineComponent({
           await this.testShell();
           return true;
           
+        case 'cd':
+          // cd命令特殊处理 - 通过pwd获取新目录
+          await this.handleCdCommand(args.join(' '));
+          return true;
+          
         default:
           return false;
       }
     },
     
-    // 执行真实的shell命令
-    async executeRealShellCommand(command: string) {
-      this.isExecuting = true;
-      this.addTerminalLine('system', '执行中...');
+    // 处理cd命令
+    async handleCdCommand(path: string) {
+      if (!path || path === '~') {
+        path = '/';
+      }
       
       try {
-        console.log('执行真实shell命令:', command);
+        // 使用绝对路径或者相对路径切换目录
+        let cdCommand = '';
+        if (path.startsWith('/')) {
+          cdCommand = `cd "${path}" && pwd`;
+        } else {
+          cdCommand = `cd "${this.currentDir}/${path}" && pwd`;
+        }
         
-        // 记录开始时间
+        const result = await Shell.exec(cdCommand);
+        const newDir = result.trim();
+        
+        if (newDir) {
+          this.currentDir = newDir;
+          this.addTerminalLine('success', `目录已切换到: ${this.currentDir}`);
+        } else {
+          this.addTerminalLine('error', `切换目录失败: ${path}`);
+        }
+      } catch (error: any) {
+        this.addTerminalLine('error', `无法切换到目录 ${path}: ${error.message}`);
+      }
+    },
+    
+    // 执行真实命令
+    async executeRealCommand(command: string) {
+      this.isExecuting = true;
+      
+      try {
+        // 首先切换到当前目录，然后执行命令
+        let fullCommand = command;
+        if (this.currentDir !== '/' && this.currentDir !== '') {
+          // 在指定目录下执行命令
+          fullCommand = `cd "${this.currentDir}" && ${command} 2>&1`;
+        }
+        
         const startTime = Date.now();
+        const result = await Shell.exec(fullCommand);
+        const duration = Date.now() - startTime;
         
-        // 使用langningchen.Shell.exec执行命令
-        const result = await Shell.exec(command);
-        
-        // 计算执行时间
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        
-        console.log('命令执行结果:', result);
-        console.log('执行耗时:', duration, 'ms');
-        
-        // 显示结果
+        // 处理输出结果
         if (result && result.trim()) {
           this.addTerminalLine('output', result);
-          this.addTerminalLine('system', `✓ 执行完成 (${duration}ms)`);
+          this.addTerminalLine('info', `✓ 命令执行成功 (${duration}ms)`);
         } else {
           this.addTerminalLine('output', '命令执行完成，无输出');
-          this.addTerminalLine('system', `✓ 执行完成 (${duration}ms)`);
+          this.addTerminalLine('info', `✓ 命令执行成功 (${duration}ms)`);
         }
         
       } catch (error: any) {
         console.error('命令执行失败:', error);
-        this.addTerminalLine('error', `执行失败: ${error.message || '未知错误'}`);
         
-        // 常见错误提示
-        if (error.message.includes('permission denied')) {
-          this.addTerminalLine('system', '提示: 权限不足，可能需要root权限');
-        } else if (error.message.includes('not found')) {
-          this.addTerminalLine('system', '提示: 命令不存在或路径错误');
-        } else if (error.message.includes('timeout')) {
-          this.addTerminalLine('system', '提示: 命令执行超时');
+        // 提取有用的错误信息
+        const errorMsg = error.message || '未知错误';
+        this.addTerminalLine('error', `执行失败: ${errorMsg}`);
+        
+        // 提供有用的提示
+        if (errorMsg.includes('permission denied')) {
+          this.addTerminalLine('warning', '提示: 权限不足，可能需要root权限');
+        } else if (errorMsg.includes('not found')) {
+          this.addTerminalLine('warning', '提示: 命令不存在或路径错误');
+        } else if (errorMsg.includes('No such file or directory')) {
+          this.addTerminalLine('warning', '提示: 文件或目录不存在');
         }
       } finally {
         this.isExecuting = false;
@@ -300,25 +295,25 @@ export default defineComponent({
       
       this.addTerminalLine('system', '开始Shell功能测试...');
       
-      const testCommands = [
-        { cmd: 'echo "Shell测试成功"', desc: '基本echo命令' },
-        { cmd: 'ls /', desc: '根目录列表' },
-        { cmd: 'pwd', desc: '当前路径' },
-        { cmd: 'date', desc: '系统时间' }
+      const tests = [
+        { cmd: 'echo "Shell终端测试"', desc: '基本命令测试', type: 'output' },
+        { cmd: 'pwd', desc: '当前目录', type: 'output' },
+        { cmd: 'ls /', desc: '根目录列表', type: 'output' },
+        { cmd: 'date', desc: '系统时间', type: 'output' },
+        { cmd: 'whoami', desc: '当前用户', type: 'output' }
       ];
       
-      for (const test of testCommands) {
+      for (const test of tests) {
         try {
-          this.addTerminalLine('system', `测试: ${test.desc}...`);
           const result = await Shell.exec(test.cmd);
-          this.addTerminalLine('output', `${test.desc}: ${result.trim()}`);
+          this.addTerminalLine(test.type as any, `${test.desc}: ${result.trim()}`);
         } catch (error: any) {
           this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
         }
-        await this.delay(500); // 延迟避免过快
+        await this.delay(300);
       }
       
-      this.addTerminalLine('system', 'Shell测试完成');
+      this.addTerminalLine('success', '✓ Shell功能测试完成');
     },
     
     // 延迟函数
@@ -329,57 +324,64 @@ export default defineComponent({
     // 显示帮助
     showHelp() {
       const helpText = `
-可用命令:
+╔═══════════════════════════════════════╗
+║            Shell终端帮助              ║
+╚═══════════════════════════════════════╝
 
-=== 内置命令 ===
-help          显示帮助信息
-clear         清空终端显示
-history       显示命令历史
-reset         重置终端
-test          测试Shell功能
+【内置命令】
+  help      - 显示此帮助信息
+  clear     - 清空终端显示
+  history   - 显示命令历史
+  reset     - 重置终端
+  test      - 测试Shell功能
+  cd [目录] - 切换工作目录
 
-=== 真实Shell命令示例 ===
-所有Linux命令都可以直接执行：
+【文件操作】
+  ls -la              列出详细文件信息
+  mkdir [目录]        创建目录
+  rm [文件]           删除文件
+  cp [源] [目标]      复制文件
+  mv [源] [目标]      移动文件
+  cat [文件]          查看文件内容
 
-文件操作:
-  ls            列出文件
-  ls -la        详细文件列表
-  cd [目录]     切换目录
-  pwd           显示当前目录
-  cat [文件]    查看文件
-  mkdir [目录]  创建目录
-  rm [文件]     删除文件
+【系统信息】
+  ps aux              查看进程列表
+  df -h               磁盘使用情况
+  free -m             内存使用情况
+  uname -a            系统信息
+  date                日期时间
+  whoami              当前用户
 
-系统信息:
-  ps aux        查看进程
-  df -h         磁盘使用情况
-  free -m       内存使用情况
-  uname -a      系统信息
-  date          日期时间
+【网络工具】
+  ping [主机]         网络连通性测试
+  curl [URL]          下载文件
+  wget [URL]          下载文件
 
-网络工具:
-  ping [主机]   网络连通性测试
-  curl [URL]    下载文件
-  wget [URL]    下载文件
-
-安装应用:
+【应用安装】
   miniapp_cli install [amr文件]  安装应用
 
-状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
+【使用技巧】
+• 点击下方快速命令可快速执行
+• 按↑↓键浏览历史命令
+• 点击输入框可调出软键盘
+• cd命令切换目录后会影响后续命令
+
+状态: ${this.shellInitialized ? '✓ Shell已就绪' : '✗ Shell未初始化'}
 `;
-      this.addTerminalLine('output', helpText);
+      this.addTerminalLine('info', helpText);
     },
     
     // 显示历史
     showHistory() {
       if (this.commandHistory.length === 0) {
-        this.addTerminalLine('output', '命令历史为空');
+        this.addTerminalLine('info', '命令历史为空');
         return;
       }
       
-      let history = '命令历史:\n';
+      let history = '命令历史记录:\n';
       this.commandHistory.forEach((cmd, index) => {
-        history += `${index + 1}. ${cmd}\n`;
+        const num = index + 1;
+        history += `${num < 10 ? ' ' : ''}${num}. ${cmd}\n`;
       });
       
       this.addTerminalLine('output', history);
@@ -391,6 +393,7 @@ test          测试Shell功能
       this.commandHistory = [];
       this.historyIndex = -1;
       this.inputText = '';
+      this.currentDir = '/';
       this.addTerminalLine('system', '终端已重置');
       this.initializeShell();
     },
@@ -464,7 +467,7 @@ test          测试Shell功能
       
       if (this.terminalLines.length > 5) {
         this.clearTerminal();
-        this.addTerminalLine('system', '再次按返回键退出');
+        this.addTerminalLine('info', '再次按返回键退出终端');
         return;
       }
       
