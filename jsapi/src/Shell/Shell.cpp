@@ -1,521 +1,638 @@
-#include "JSShell.hpp"
-#include <Exceptions/AssertFailed.hpp>
+#include "Shell.hpp"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <stdexcept>
+#include <thread>
+#include <chrono>
+#include <vector>
+#include <queue>
+#include <algorithm>
+#include <fstream>
 #include <sstream>
-#include <iostream>
+#include <iomanip>
+#include <atomic>
+#include <memory>
+#include <unistd.h>
+#include <fcntl.h>
+#include <pty.h>
+#include <termios.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <grp.h>
+#include <pwd.h>
 
-std::map<int, JSShell*> JSShell::activeShells;
-std::mutex JSShell::activeShellsMutex;
-
-JSShell::JSShell() {}
-
-JSShell::~JSShell() {
-    std::lock_guard<std::mutex> lock(shellMutex);
-    if (shell) {
-        shell->stop();
+// 内部实现类
+class Shell::Impl {
+public:
+    Impl(const ShellConfig& config) 
+        : config(config), 
+          state(STATE_IDLE),
+          shellPid(-1),
+          masterFd(-1),
+          slaveFd(-1),
+          exitCode(-1),
+          shouldStop(false) {
         
-        // 从活动Shell列表中移除
-        std::lock_guard<std::mutex> lock2(activeShellsMutex);
-        for (auto it = activeShells.begin(); it != activeShells.end();) {
-            if (it->second == this) {
-                it = activeShells.erase(it);
-            } else {
-                ++it;
+        // 设置默认环境变量
+        defaultEnvVars["TERM"] = config.enableColor ? "xterm-256color" : "vt100";
+        defaultEnvVars["COLORTERM"] = "truecolor";
+        defaultEnvVars["SHELL"] = config.shellPath;
+        
+        // 合并用户自定义环境变量
+        for (const auto& kv : config.envVars) {
+            envVars[kv.first] = kv.second;
+        }
+    }
+    
+    ~Impl() {
+        stop();
+    }
+    
+    CommandResult exec(const std::string& cmd) {
+        CommandResult result;
+        auto startTime = std::chrono::steady_clock::now();
+        
+        if (config.type == SHELL_POPEN) {
+            result = execWithPopen(cmd);
+        } else if (config.type == SHELL_INTERACTIVE) {
+            result = execInInteractive(cmd);
+        } else {
+            result.error = "Unsupported shell type";
+        }
+        
+        auto endTime = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed = endTime - startTime;
+        result.executionTime = elapsed.count();
+        
+        return result;
+    }
+    
+    CommandResult execWithPopen(const std::string& cmd) {
+        CommandResult result;
+        
+        // 构建环境变量字符串
+        std::string envStr;
+        for (const auto& kv : envVars) {
+            envStr += kv.first + "=" + kv.second + " ";
+        }
+        
+        // 执行命令
+        std::string fullCmd = envStr + cmd;
+        FILE* pipe = popen(fullCmd.c_str(), "r");
+        if (!pipe) {
+            result.error = "popen failed: " + std::string(strerror(errno));
+            return result;
+        }
+        
+        // 读取输出
+        char buffer[4096];
+        while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            result.output += buffer;
+        }
+        
+        // 获取退出状态
+        int status = pclose(pipe);
+        if (WIFEXITED(status)) {
+            result.exitCode = WEXITSTATUS(status);
+            result.success = (result.exitCode == 0);
+        } else {
+            result.exitCode = -1;
+            result.error = "Command terminated by signal";
+        }
+        
+        return result;
+    }
+    
+    CommandResult execInInteractive(const std::string& cmd) {
+        CommandResult result;
+        
+        if (!ensureRunning()) {
+            result.error = "Failed to start interactive shell";
+            return result;
+        }
+        
+        // 清空输出缓冲区
+        {
+            std::lock_guard<std::mutex> lock(outputMutex);
+            outputBuffer.clear();
+        }
+        
+        // 写入命令并添加换行
+        std::string fullCmd = cmd + "\n";
+        if (!writeToShell(fullCmd)) {
+            result.error = "Failed to write command to shell";
+            return result;
+        }
+        
+        // 等待命令执行完成（超时机制）
+        auto startTime = std::chrono::steady_clock::now();
+        bool gotPrompt = false;
+        
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            
+            // 检查超时（5秒）
+            auto now = std::chrono::steady_clock::now();
+            std::chrono::duration<double> elapsed = now - startTime;
+            if (elapsed.count() > 5.0) {
+                result.error = "Command execution timeout";
+                break;
+            }
+            
+            // 检查是否有新输出
+            std::string newOutput;
+            {
+                std::lock_guard<std::mutex> lock(outputMutex);
+                if (!outputBuffer.empty()) {
+                    newOutput = outputBuffer;
+                    outputBuffer.clear();
+                }
+            }
+            
+            if (!newOutput.empty()) {
+                result.output += newOutput;
+                
+                // 简单检测命令是否执行完成（检测到提示符）
+                if (newOutput.find("$ ") != std::string::npos ||
+                    newOutput.find("# ") != std::string::npos ||
+                    newOutput.find("> ") != std::string::npos) {
+                    gotPrompt = true;
+                    break;
+                }
+            }
+        }
+        
+        if (gotPrompt) {
+            result.success = true;
+            result.exitCode = 0;
+        }
+        
+        return result;
+    }
+    
+    bool start() {
+        if (state != STATE_IDLE && state != STATE_EXITED) {
+            return false;
+        }
+        
+        if (config.type != SHELL_INTERACTIVE) {
+            // 非交互式Shell不需要特殊启动
+            state = STATE_IDLE;
+            return true;
+        }
+        
+        return startInteractive();
+    }
+    
+    bool startInteractive() {
+        struct termios termp;
+        struct winsize win;
+        
+        // 获取当前终端设置
+        if (tcgetattr(STDIN_FILENO, &termp) == -1) {
+            perror("tcgetattr");
+            return false;
+        }
+        
+        // 设置原始模式
+        cfmakeraw(&termp);
+        termp.c_oflag |= OPOST;
+        termp.c_lflag |= ECHO;
+        
+        // 设置窗口大小
+        win.ws_row = config.initialRows;
+        win.ws_col = config.initialCols;
+        win.ws_xpixel = 0;
+        win.ws_ypixel = 0;
+        
+        // 创建伪终端
+        if (openpty(&masterFd, &slaveFd, nullptr, &termp, &win) == -1) {
+            perror("openpty");
+            return false;
+        }
+        
+        // 设置非阻塞
+        int flags = fcntl(masterFd, F_GETFL, 0);
+        fcntl(masterFd, F_SETFL, flags | O_NONBLOCK);
+        
+        // Fork子进程
+        shellPid = fork();
+        if (shellPid == -1) {
+            perror("fork");
+            close(masterFd);
+            close(slaveFd);
+            return false;
+        }
+        
+        if (shellPid == 0) { // 子进程
+            close(masterFd);
+            
+            // 创建新会话
+            setsid();
+            
+            // 设置伪终端为控制终端
+            if (ioctl(slaveFd, TIOCSCTTY, 0) == -1) {
+                perror("ioctl TIOCSCTTY");
+            }
+            
+            // 复制文件描述符
+            dup2(slaveFd, STDIN_FILENO);
+            dup2(slaveFd, STDOUT_FILENO);
+            dup2(slaveFd, STDERR_FILENO);
+            
+            // 关闭slaveFd
+            if (slaveFd > STDERR_FILENO) {
+                close(slaveFd);
+            }
+            
+            // 设置环境变量
+            for (const auto& kv : envVars) {
+                setenv(kv.first.c_str(), kv.second.c_str(), 1);
+            }
+            
+            // 设置工作目录
+            if (!config.workingDirectory.empty()) {
+                if (chdir(config.workingDirectory.c_str()) != 0) {
+                    perror("chdir");
+                }
+            }
+            
+            // 执行shell
+            const char* shell = config.shellPath.c_str();
+            execlp(shell, shell, nullptr);
+            
+            // 如果执行失败
+            perror("execlp");
+            _exit(EXIT_FAILURE);
+        } else { // 父进程
+            close(slaveFd);
+            
+            // 启动读取线程
+            shouldStop = false;
+            readThread = std::thread(&Shell::Impl::readOutputLoop, this);
+            
+            state = STATE_RUNNING;
+            if (stateCallback) {
+                stateCallback(state);
+            }
+            
+            return true;
+        }
+    }
+    
+    void stop() {
+        shouldStop = true;
+        
+        if (readThread.joinable()) {
+            readThread.join();
+        }
+        
+        if (shellPid > 0) {
+            // 发送SIGTERM信号
+            kill(shellPid, SIGTERM);
+            
+            // 等待子进程退出
+            int status;
+            for (int i = 0; i < 10; i++) {
+                pid_t result = waitpid(shellPid, &status, WNOHANG);
+                if (result == shellPid) {
+                    exitCode = WEXITSTATUS(status);
+                    shellPid = -1;
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            
+            // 如果还没退出，发送SIGKILL
+            if (shellPid > 0) {
+                kill(shellPid, SIGKILL);
+                waitpid(shellPid, &status, 0);
+                shellPid = -1;
+            }
+        }
+        
+        if (masterFd >= 0) {
+            close(masterFd);
+            masterFd = -1;
+        }
+        
+        state = STATE_EXITED;
+        if (stateCallback) {
+            stateCallback(state);
+        }
+    }
+    
+    void readOutputLoop() {
+        fd_set readfds;
+        char buffer[4096];
+        
+        while (!shouldStop) {
+            FD_ZERO(&readfds);
+            FD_SET(masterFd, &readfds);
+            
+            struct timeval timeout;
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 50000; // 50ms
+            
+            int ret = select(masterFd + 1, &readfds, nullptr, nullptr, &timeout);
+            
+            if (ret > 0 && FD_ISSET(masterFd, &readfds)) {
+                ssize_t n = read(masterFd, buffer, sizeof(buffer) - 1);
+                if (n > 0) {
+                    buffer[n] = '\0';
+                    
+                    // 添加到输出缓冲区
+                    {
+                        std::lock_guard<std::mutex> lock(outputMutex);
+                        outputBuffer.append(buffer, n);
+                    }
+                    
+                    // 回调通知
+                    if (outputCallback) {
+                        outputCallback(std::string(buffer, n), false);
+                    }
+                    
+                    // 添加到历史记录
+                    commandHistory.push_back(std::string(buffer, n));
+                } else if (n == 0) {
+                    // EOF - 子进程结束
+                    break;
+                }
+            } else if (ret < 0 && errno != EINTR) {
+                break;
+            }
+            
+            // 检查子进程状态
+            if (shellPid > 0) {
+                int status;
+                pid_t result = waitpid(shellPid, &status, WNOHANG);
+                if (result == shellPid) {
+                    // 子进程已退出
+                    exitCode = WEXITSTATUS(status);
+                    shellPid = -1;
+                    break;
+                }
             }
         }
     }
+    
+    bool writeToShell(const std::string& data) {
+        if (masterFd < 0) {
+            return false;
+        }
+        
+        ssize_t totalWritten = 0;
+        const char* ptr = data.c_str();
+        size_t remaining = data.size();
+        
+        while (remaining > 0 && !shouldStop) {
+            ssize_t written = write(masterFd, ptr, remaining);
+            if (written <= 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    continue;
+                }
+                return false;
+            }
+            totalWritten += written;
+            ptr += written;
+            remaining -= written;
+        }
+        
+        return true;
+    }
+    
+    bool ensureRunning() {
+        if (state != STATE_RUNNING) {
+            return start();
+        }
+        return true;
+    }
+    
+    // 成员变量
+    ShellConfig config;
+    std::atomic<ShellState> state;
+    std::atomic<int> shellPid;
+    std::atomic<int> masterFd;
+    std::atomic<int> slaveFd;
+    std::atomic<int> exitCode;
+    std::atomic<bool> shouldStop;
+    
+    std::thread readThread;
+    std::mutex outputMutex;
+    std::string outputBuffer;
+    
+    std::map<std::string, std::string> envVars;
+    std::map<std::string, std::string> defaultEnvVars;
+    std::vector<std::string> commandHistory;
+    
+    std::function<void(const std::string&, bool)> outputCallback;
+    std::function<void(ShellState)> stateCallback;
+};
+
+// Shell类实现
+Shell::Shell() : impl(std::make_unique<Impl>(ShellConfig())) {}
+
+Shell::Shell(const ShellConfig& config) : impl(std::make_unique<Impl>(config)) {}
+
+Shell::~Shell() = default;
+
+Shell::CommandResult Shell::exec(const std::string& cmd) {
+    return impl->exec(cmd);
 }
 
-Shell::ShellType JSShell::stringToShellType(const std::string& typeStr) {
-    if (typeStr == "popen") return Shell::SHELL_POPEN;
-    if (typeStr == "background") return Shell::SHELL_BACKGROUND;
-    return Shell::SHELL_INTERACTIVE; // 默认为交互式
+Shell::CommandResult Shell::exec(const std::string& cmd, const std::map<std::string, std::string>& env) {
+    auto oldEnv = impl->envVars;
+    for (const auto& kv : env) {
+        impl->envVars[kv.first] = kv.second;
+    }
+    
+    auto result = impl->exec(cmd);
+    
+    impl->envVars = oldEnv;
+    return result;
 }
 
-void JSShell::onShellOutput(const std::string& output, bool isError) {
-    if (isError) {
-        publish("error", JQValue(output));
+bool Shell::start() {
+    return impl->start();
+}
+
+bool Shell::start(const std::string& shellPath) {
+    impl->config.shellPath = shellPath;
+    return impl->start();
+}
+
+bool Shell::restart() {
+    impl->stop();
+    return impl->start();
+}
+
+void Shell::stop() {
+    impl->stop();
+}
+
+bool Shell::writeInput(const std::string& input) {
+    return impl->writeToShell(input);
+}
+
+bool Shell::writeInputLine(const std::string& line) {
+    return impl->writeToShell(line + "\n");
+}
+
+void Shell::setOutputCallback(std::function<void(const std::string&, bool)> callback) {
+    impl->outputCallback = callback;
+}
+
+void Shell::setStateCallback(std::function<void(ShellState)> callback) {
+    impl->stateCallback = callback;
+}
+
+bool Shell::resizeTerminal(int rows, int cols) {
+    if (impl->masterFd < 0) {
+        return false;
+    }
+    
+    struct winsize ws;
+    ws.ws_row = rows;
+    ws.ws_col = cols;
+    ws.ws_xpixel = 0;
+    ws.ws_ypixel = 0;
+    
+    return ioctl(impl->masterFd, TIOCSWINSZ, &ws) == 0;
+}
+
+void Shell::sendSignal(int signal) {
+    if (impl->shellPid > 0) {
+        kill(impl->shellPid, signal);
+    }
+}
+
+void Shell::sendCtrlC() {
+    if (impl->masterFd >= 0) {
+        char ctrlC = 0x03;
+        write(impl->masterFd, &ctrlC, 1);
+    }
+}
+
+void Shell::sendCtrlD() {
+    if (impl->masterFd >= 0) {
+        char ctrlD = 0x04;
+        write(impl->masterFd, &ctrlD, 1);
+    }
+}
+
+void Shell::sendCtrlZ() {
+    if (impl->masterFd >= 0) {
+        char ctrlZ = 0x1A;
+        write(impl->masterFd, &ctrlZ, 1);
+    }
+}
+
+Shell::ShellState Shell::getState() const {
+    return impl->state;
+}
+
+int Shell::getPid() const {
+    return impl->shellPid;
+}
+
+Shell::ShellType Shell::getType() const {
+    return impl->config.type;
+}
+
+std::string Shell::getShellPath() const {
+    return impl->config.shellPath;
+}
+
+std::vector<std::string> Shell::getCommandHistory() const {
+    return impl->commandHistory;
+}
+
+void Shell::clearCommandHistory() {
+    impl->commandHistory.clear();
+}
+
+Shell::CommandResult Shell::execScript(const std::vector<std::string>& commands) {
+    CommandResult result;
+    std::string script;
+    
+    for (const auto& cmd : commands) {
+        script += cmd + "\n";
+    }
+    
+    // 将脚本写入临时文件
+    char tempFile[] = "/tmp/shell_script_XXXXXX";
+    int fd = mkstemp(tempFile);
+    if (fd == -1) {
+        result.error = "Failed to create temp file";
+        return result;
+    }
+    
+    write(fd, script.c_str(), script.size());
+    close(fd);
+    
+    // 执行脚本
+    result = exec("bash " + std::string(tempFile));
+    
+    // 删除临时文件
+    unlink(tempFile);
+    
+    return result;
+}
+
+Shell::CommandResult Shell::execScriptFile(const std::string& filePath) {
+    CommandResult result;
+    
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        result.error = "Failed to open script file: " + filePath;
+        return result;
+    }
+    
+    std::string script((std::istreambuf_iterator<char>(file)),
+                       std::istreambuf_iterator<char>());
+    
+    // 根据文件扩展名选择解释器
+    std::string interpreter;
+    if (filePath.find(".sh") != std::string::npos) {
+        interpreter = "bash";
+    } else if (filePath.find(".py") != std::string::npos) {
+        interpreter = "python";
+    } else if (filePath.find(".js") != std::string::npos) {
+        interpreter = "node";
     } else {
-        publish("output", JQValue(output));
+        interpreter = "bash";
     }
-}
-
-void JSShell::onShellStateChange(Shell::ShellState state) {
-    publish("state", JQValue(static_cast<int>(state)));
-}
-
-void JSShell::initialize(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        if (shell) {
-            shell->stop();
-        }
-        
-        // 创建默认配置的Shell
-        Shell::ShellConfig shellConfig;
-        shellConfig.type = Shell::SHELL_POPEN;
-        shell = std::make_unique<Shell>(shellConfig);
-        
-        isInitialized = true;
-        info.GetReturnValue().Set(true);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::create(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 1);
-        ASSERT(info[0].is_object());
-        
-        JQObjectRef configObj = info[0].toObject();
-        
-        // 解析配置
-        if (configObj.has("type")) {
-            config.shellType = configObj.get("type").string_value();
-        }
-        if (configObj.has("shellPath")) {
-            config.shellPath = configObj.get("shellPath").string_value();
-        }
-        if (configObj.has("enableColor")) {
-            config.enableColor = configObj.get("enableColor").bool_value();
-        }
-        if (configObj.has("rows")) {
-            config.rows = configObj.get("rows").int_value();
-        }
-        if (configObj.has("cols")) {
-            config.cols = configObj.get("cols").int_value();
-        }
-        if (configObj.has("env")) {
-            config.env = configObj.get("env");
-        }
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        if (shell) {
-            shell->stop();
-        }
-        
-        // 创建Shell配置
-        Shell::ShellConfig shellConfig;
-        shellConfig.type = stringToShellType(config.shellType);
-        shellConfig.shellPath = config.shellPath;
-        shellConfig.enableColor = config.enableColor;
-        shellConfig.initialRows = config.rows;
-        shellConfig.initialCols = config.cols;
-        
-        // 设置环境变量
-        if (config.env.is_object()) {
-            JQObjectRef envObj = config.env.toObject();
-            auto envKeys = envObj.getPropertyNames();
-            for (size_t i = 0; i < envKeys.size(); i++) {
-                std::string key = envKeys[i].string_value();
-                std::string value = envObj.get(envKeys[i]).string_value();
-                shellConfig.envVars[key] = value;
-            }
-        }
-        
-        // 创建Shell实例
-        shell = std::make_unique<Shell>(shellConfig);
-        
-        // 设置回调
-        shell->setOutputCallback([this](const std::string& output, bool isError) {
-            this->onShellOutput(output, isError);
-        });
-        
-        shell->setStateCallback([this](Shell::ShellState state) {
-            this->onShellStateChange(state);
-        });
-        
-        // 添加到活动Shell列表
-        std::lock_guard<std::mutex> lock2(activeShellsMutex);
-        activeShells[shell->getPid()] = this;
-        
-        isInitialized = true;
-        info.GetReturnValue().Set(true);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::exec(JQAsyncInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 1);
-        ASSERT(info[0].is_string());
-        
-        std::string cmd = info[0].string_value();
-        
-        // 判断是否为交互式程序
-        std::string program = cmd.substr(0, cmd.find(' '));
-        if (shell->isInteractiveProgram(program)) {
-            // 解析参数
-            std::vector<std::string> args;
-            size_t pos = 0;
-            while ((pos = cmd.find(' ', pos)) != std::string::npos) {
-                size_t start = pos + 1;
-                pos = cmd.find(' ', start);
-                args.push_back(cmd.substr(start, pos - start));
-            }
-            
-            auto result = shell->execInteractiveProgram(program, args);
-            if (result.success) {
-                info.post("Interactive program started");
-            } else {
-                info.postError(result.error);
-            }
-        } else {
-            // 普通命令
-            auto result = shell->exec(cmd);
-            
-            // 构建结果对象
-            JQObjectRef resultObj = JQObjectRef::New(info.env());
-            resultObj.set("success", JQValue(result.success));
-            resultObj.set("exitCode", JQValue(result.exitCode));
-            resultObj.set("output", JQValue(result.output));
-            resultObj.set("error", JQValue(result.error));
-            resultObj.set("executionTime", JQValue(result.executionTime));
-            
-            info.post(resultObj);
-        }
-        
-    } catch (const std::exception& e) {
-        info.postError(e.what());
-    }
-}
-
-void JSShell::execScript(JQAsyncInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 1);
-        ASSERT(info[0].is_array());
-        
-        JQArrayRef commands = info[0].toArray();
-        std::vector<std::string> cmdList;
-        
-        for (size_t i = 0; i < commands.size(); i++) {
-            cmdList.push_back(commands.get(i).string_value());
-        }
-        
-        auto result = shell->execScript(cmdList);
-        
-        JQObjectRef resultObj = JQObjectRef::New(info.env());
-        resultObj.set("success", JQValue(result.success));
-        resultObj.set("exitCode", JQValue(result.exitCode));
-        resultObj.set("output", JQValue(result.output));
-        resultObj.set("error", JQValue(result.error));
-        
-        info.post(resultObj);
-        
-    } catch (const std::exception& e) {
-        info.postError(e.what());
-    }
-}
-
-void JSShell::execFile(JQAsyncInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 1);
-        ASSERT(info[0].is_string());
-        
-        std::string filePath = info[0].string_value();
-        auto result = shell->execScriptFile(filePath);
-        
-        JQObjectRef resultObj = JQObjectRef::New(info.env());
-        resultObj.set("success", JQValue(result.success));
-        resultObj.set("exitCode", JQValue(result.exitCode));
-        resultObj.set("output", JQValue(result.output));
-        resultObj.set("error", JQValue(result.error));
-        
-        info.post(resultObj);
-        
-    } catch (const std::exception& e) {
-        info.postError(e.what());
-    }
-}
-
-void JSShell::start(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        bool success = shell->start();
-        
-        info.GetReturnValue().Set(success);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::stop(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        shell->stop();
-        
-        info.GetReturnValue().Set(true);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::restart(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        bool success = shell->restart();
-        
-        info.GetReturnValue().Set(success);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::write(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 1);
-        ASSERT(info[0].is_string());
-        
-        std::string input = info[0].string_value();
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        bool success = shell->writeInputLine(input);
-        
-        info.GetReturnValue().Set(success);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::sendSignal(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 1);
-        ASSERT(info[0].is_number());
-        
-        int signal = info[0].int_value();
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        shell->sendSignal(signal);
-        
-        info.GetReturnValue().Set(true);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::sendCtrlC(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        shell->sendCtrlC();
-        
-        info.GetReturnValue().Set(true);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::sendCtrlD(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        shell->sendCtrlD();
-        
-        info.GetReturnValue().Set(true);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::sendCtrlZ(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        shell->sendCtrlZ();
-        
-        info.GetReturnValue().Set(true);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::resize(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 2);
-        ASSERT(info[0].is_number());
-        ASSERT(info[1].is_number());
-        
-        int rows = info[0].int_value();
-        int cols = info[1].int_value();
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        bool success = shell->resizeTerminal(rows, cols);
-        
-        info.GetReturnValue().Set(success);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::getState(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        auto state = shell->getState();
-        
-        info.GetReturnValue().Set(static_cast<int>(state));
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::getPid(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        int pid = shell->getPid();
-        
-        info.GetReturnValue().Set(pid);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::getHistory(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        auto history = shell->getCommandHistory();
-        
-        JQArrayRef historyArr = JQArrayRef::New(info.env(), history.size());
-        for (size_t i = 0; i < history.size(); i++) {
-            historyArr.set(i, JQValue(history[i]));
-        }
-        
-        info.GetReturnValue().Set(historyArr);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::clearHistory(JQFunctionInfo& info)
-{
-    try {
-        ASSERT(info.Length() == 0);
-        
-        std::lock_guard<std::mutex> lock(shellMutex);
-        shell->clearCommandHistory();
-        
-        info.GetReturnValue().Set(true);
-        
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
-
-void JSShell::execInteractive(JQAsyncInfo& info)
-{
-    try {
-        ASSERT(info.Length() >= 1);
-        ASSERT(info[0].is_string());
-        
-        std::string program = info[0].string_value();
-        std::vector<std::string> args;
-        
-        // 解析参数
-        for (size_t i = 1; i < info.Length(); i++) {
-            if (info[i].is_string()) {
-                args.push_back(info[i].string_value());
-            }
-        }
-        
-        auto result = shell->execInteractiveProgram(program, args);
-        
-        if (result.success) {
-            info.post(std::string("Started interactive program: ") + program);
-        } else {
-            info.postError(result.error);
-        }
-        
-    } catch (const std::exception& e) {
-        info.postError(e.what());
-    }
-}
-
-JSValue createShell(JQModuleEnv* env)
-{
-    JQFunctionTemplateRef tpl = JQFunctionTemplate::New(env, "Shell");
-    tpl->InstanceTemplate()->setObjectCreator([]() {
-        return new JSShell();
-    });
-
-    // Shell配置和创建
-    tpl->SetProtoMethod("initialize", &JSShell::initialize);
-    tpl->SetProtoMethod("create", &JSShell::create);
     
-    // 命令执行
-    tpl->SetProtoMethodPromise("exec", &JSShell::exec);
-    tpl->SetProtoMethodPromise("execScript", &JSShell::execScript);
-    tpl->SetProtoMethodPromise("execFile", &JSShell::execFile);
-    tpl->SetProtoMethodPromise("execInteractive", &JSShell::execInteractive);
-    
-    // 交互式控制
-    tpl->SetProtoMethod("start", &JSShell::start);
-    tpl->SetProtoMethod("stop", &JSShell::stop);
-    tpl->SetProtoMethod("restart", &JSShell::restart);
-    tpl->SetProtoMethod("write", &JSShell::write);
-    
-    // 信号控制
-    tpl->SetProtoMethod("sendSignal", &JSShell::sendSignal);
-    tpl->SetProtoMethod("sendCtrlC", &JSShell::sendCtrlC);
-    tpl->SetProtoMethod("sendCtrlD", &JSShell::sendCtrlD);
-    tpl->SetProtoMethod("sendCtrlZ", &JSShell::sendCtrlZ);
-    
-    // 终端控制
-    tpl->SetProtoMethod("resize", &JSShell::resize);
-    
-    // 信息查询
-    tpl->SetProtoMethod("getState", &JSShell::getState);
-    tpl->SetProtoMethod("getPid", &JSShell::getPid);
-    tpl->SetProtoMethod("getHistory", &JSShell::getHistory);
-    tpl->SetProtoMethod("clearHistory", &JSShell::clearHistory);
-    
-    JSShell::InitTpl(tpl);
-    return tpl->CallConstructor();
+    result = exec(interpreter + " " + filePath);
+    return result;
+}
+
+void Shell::execAsync(const std::string& cmd, 
+                       std::function<void(const CommandResult&)> callback) {
+    std::thread([this, cmd, callback]() {
+        auto result = this->exec(cmd);
+        callback(result);
+    }).detach();
+}
+
+void Shell::execStream(const std::string& cmd,
+                        std::function<void(const std::string&, bool)> onOutput) {
+    std::thread([this, cmd, onOutput]() {
+        CommandResult result;
+        auto oldCallback = impl->outputCallback;
+        
+        // 临时设置回调
+        impl->outputCallback = onOutput;
+        result = this->exec(cmd);
+        
+        // 恢复原回调
+        impl->outputCallback = oldCallback;
+    }).detach();
 }

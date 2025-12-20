@@ -2,6 +2,7 @@
 #include <Exceptions/AssertFailed.hpp>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 std::map<int, JSShell*> JSShell::activeShells;
 std::mutex JSShell::activeShellsMutex;
@@ -404,7 +405,7 @@ void JSShell::getHistory(JQFunctionInfo& info)
         
         JQArrayRef historyArr = JQArrayRef::New(info.env(), history.size());
         for (size_t i = 0; i < history.size(); i++) {
-            historyArr.set(i, JQValue(history[i]));
+            historyArr.set(i, JQValue(history[i].c_str()));
         }
         
         info.GetReturnValue().Set(historyArr);
