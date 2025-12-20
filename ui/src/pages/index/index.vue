@@ -30,7 +30,7 @@
 </template>
 
 <style lang="less" scoped>
-@import url('./index.less');
+@import url('index.less');
 </style>
 
 <script>
