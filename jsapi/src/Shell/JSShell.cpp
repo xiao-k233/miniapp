@@ -1,5 +1,6 @@
 #include "JSShell.hpp"
 #include <Exceptions/AssertFailed.hpp>
+#include <jqutil_v2/bson.h>  // 使用 Bson 构造 JS 对象
 
 JSShell::JSShell() {}
 JSShell::~JSShell() {}
@@ -28,12 +29,12 @@ void JSShell::exec(JQAsyncInfo& info)
         std::lock_guard<std::mutex> lock(mutex);
         auto [output, code] = shell->exec(cmd);
 
-        // 用 tplEnv 构造对象，不使用 NewObject 或 New
-        JQValue resultObj(info.tplEnv);
-        resultObj.Set("stdout", output);
-        resultObj.Set("code", code);
+        // 使用 Bson 构造 JS 对象
+        Bson result;
+        result["stdout"] = output;
+        result["code"] = code;
 
-        info.post(resultObj);
+        info.post(result); // 直接返回给 JS
     } catch (const std::exception& e) {
         info.postError(e.what());
     }
