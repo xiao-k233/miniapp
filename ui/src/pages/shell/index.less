@@ -9,11 +9,11 @@
   flex-direction: column;
 }
 
-/* 终端输出区域 */
+/* 终端输出区域 - 占据大部分空间 */
 .terminal-content {
   flex: 1;
   width: 100%;
-  background-color: #000000;
+  background-color: #0c0c0c;
 }
 
 .terminal-scroller {
@@ -22,105 +22,62 @@
   padding-left: 10px;
   padding-right: 10px;
   padding-top: 10px;
-  padding-bottom: 8px;
-  background-color: #000000;
+  padding-bottom: 5px;
 }
 
 .terminal-line {
   width: 100%;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .line-text {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 18px;
-  font-family: 'Monaco', 'Consolas', 'Menlo', 'Courier New', monospace;
+  font-family: 'Monaco', 'Consolas', monospace;
   word-break: break-word;
-  white-space: pre-wrap;
-  letter-spacing: 0.2px;
-  /* 确保文字显示 */
-  opacity: 1 !important;
-  visibility: visible !important;
-  color: inherit !important;
 }
 
-/* ===== 修复：确保输出文字清晰可见 ===== */
-
-/* 命令输入行 - 亮绿色 */
 .line-text.command {
-  color: #00ff00 !important;       /* 亮绿色 */
+  color: #00ff00;
   font-weight: bold;
 }
 
-/* 普通输出 - 明亮的白色，强制显示 */
 .line-text.output {
-  color: #ffffff !important;       /* 纯白色，确保可见 */
-  font-weight: normal;
+  color: #cccccc;
 }
 
-/* 错误信息 - 亮红色 */
 .line-text.error {
-  color: #ff5555 !important;       /* 明亮的红色 */
-  font-weight: bold;
+  color: #ff5555;
 }
 
-/* 成功信息 - 亮绿色 */
-.line-text.success {
-  color: #00ff00 !important;       /* 亮绿色 */
-  font-weight: bold;
-}
-
-/* 警告信息 - 亮橙色 */
-.line-text.warning {
-  color: #ffaa00 !important;       /* 亮橙色 */
-  font-weight: bold;
-}
-
-/* 信息提示 - 亮蓝色 */
-.line-text.info {
-  color: #55aaff !important;       /* 亮蓝色 */
-  font-weight: bold;
-}
-
-/* 系统消息 - 亮紫色 */
-.line-text.system {
-  color: #aa66ff !important;       /* 亮紫色 */
-  font-weight: bold;
-}
-
-/* 命令提示符 */
 .command-prompt {
   flex-direction: row;
   align-items: center;
-  margin-top: 10px;
+  margin-top: 5px;
   margin-bottom: 5px;
-  padding: 4px 0;
 }
 
 .prompt {
-  color: #00ff00;       /* 亮绿色 */
+  color: #00ff00;
   font-size: 14px;
   font-weight: bold;
-  margin-right: 8px;
-  font-family: 'Monaco', 'Consolas', monospace;
+  margin-right: 5px;
 }
 
 .cursor {
   color: #00ff00;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 14px;
   animation-name: blink;
-  animation-duration: 0.8s;
+  animation-duration: 1s;
   animation-iteration-count: infinite;
 }
 
 .loading {
   color: #ffaa00;
-  font-size: 13px;
-  margin-left: 8px;
+  font-size: 14px;
 }
 
-/* 输入区域 */
+/* 输入区域 - 固定在底部 */
 .input-section {
   height: 50px;
   flex-direction: row;
@@ -135,141 +92,111 @@
 
 .input-container {
   flex: 1;
-  height: 34px;
-  background-color: #111111;
-  padding-left: 12px;
-  padding-right: 12px;
-  border-radius: 6px;
+  height: 36px;
+  background-color: #000000;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-radius: 4px;
   justify-content: center;
-  border-width: 1px;
-  border-style: solid;
-  border-color: #444444;
-}
-
-.input-container:active {
-  border-color: #00ff00;
-  background-color: #0a0a0a;
 }
 
 .input-text {
   font-size: 14px;
   color: #ffffff;
-  line-height: 34px;
-  font-family: 'Monaco', 'Consolas', monospace;
+  line-height: 36px;
 }
 
-/* 操作按钮 */
+/* 操作按钮 - 紧凑布局 */
 .action-buttons {
   flex-direction: row;
-  margin-left: 10px;
+  margin-left: 8px;
 }
 
 .btn {
   min-width: 60px;
-  height: 34px;
-  padding-left: 14px;
-  padding-right: 14px;
-  font-size: 13px;
+  height: 36px;
+  padding-left: 12px;
+  padding-right: 12px;
+  font-size: 14px;
   color: #ffffff;
   text-align: center;
-  line-height: 34px;
-  border-radius: 6px;
-  margin-left: 8px;
-  font-weight: bold;
+  line-height: 36px;
+  border-radius: 4px;
+  margin-left: 4px;
 }
 
 .btn-execute {
-  background-color: #0066cc;
-}
-
-.btn-execute:active {
-  background-color: #0088ff;
+  background-color: #007bff;
 }
 
 .btn-clear {
   background-color: #444444;
 }
 
-.btn-clear:active {
-  background-color: #666666;
-}
-
 .btn-disabled {
-  background-color: #2a2a2a;
+  background-color: #333333;
   color: #666666;
 }
 
-/* 快速命令区域 */
+/* 快速命令区域 - 放在输入区域上方 */
 .quick-commands-section {
-  height: 75px;
-  background-color: #151515;
+  height: 70px;
+  background-color: #1a1a1a;
   border-top-width: 1px;
   border-top-style: solid;
-  border-top-color: #222222;
-  padding-top: 6px;
-  padding-bottom: 6px;
+  border-top-color: #333333;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 
 .section-title {
   font-size: 12px;
   color: #888888;
-  margin-left: 12px;
-  margin-bottom: 6px;
-  height: 16px;
-  line-height: 16px;
-  font-family: 'Monaco', 'Consolas', monospace;
+  margin-left: 10px;
+  margin-bottom: 5px;
+  height: 15px;
+  line-height: 15px;
 }
 
 .quick-commands-container {
   flex-direction: row;
-  flex-wrap: nowrap;
-  padding-left: 10px;
-  padding-right: 10px;
-  height: 46px;
-  overflow-x: scroll;
+  flex-wrap: wrap;
+  padding-left: 5px;
+  padding-right: 5px;
+  height: 45px;
+  overflow: hidden;
 }
 
 .quick-command {
-  flex-shrink: 0;
-  padding-left: 12px;
-  padding-right: 12px;
-  padding-top: 8px;
-  padding-bottom: 6px;
-  background-color: #252525;
-  border-radius: 6px;
-  margin-right: 8px;
-  border-width: 1px;
-  border-style: solid;
-  border-color: #333333;
-  min-width: 70px;
-}
-
-.quick-command:active {
-  background-color: #333333;
-  border-color: #00ff00;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  background-color: #2a2a2a;
+  border-radius: 4px;
+  margin-right: 5px;
+  margin-bottom: 3px;
 }
 
 .quick-label {
-  font-size: 13px;
+  font-size: 12px;
   color: #00ff00;
   font-weight: bold;
-  height: 20px;
-  line-height: 20px;
+  height: 18px;
+  line-height: 18px;
   text-align: center;
-  font-family: 'Monaco', 'Consolas', monospace;
 }
 
 .quick-desc {
-  font-size: 11px;
-  color: #aaaaaa;
-  height: 16px;
-  line-height: 16px;
+  font-size: 10px;
+  color: #888888;
+  height: 12px;
+  line-height: 12px;
   text-align: center;
-  font-family: 'Monaco', 'Consolas', monospace;
 }
 
 @keyframes blink {
   0% { opacity: 1; }
-  50% { opacity: 0.2; }
+  50% { opacity: 0; }
   100% { opacity: 1; }
 }
