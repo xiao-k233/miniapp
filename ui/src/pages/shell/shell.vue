@@ -70,6 +70,6 @@
 </style>
 
 <script>
-import shell from './index';
+import shell from './shell';
 export default shell;
 </script>
