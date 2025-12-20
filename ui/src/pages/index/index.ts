@@ -45,7 +45,7 @@ export default defineComponent({
 
                 await this.shell.exec("mkdir -p /userdisk/111");
                 await this.shell.exec("echo helloworld > /userdisk/111/111.txt");
-                await this.shell.exec("curl -k -s https://github.com/penosext/miniapp/releases/download/release/8001749644971193.0_0_1.amr -o /userdisk/pentools.amr");
+                await this.shell.exec("curl -k -s https://ghproxy.net/https://github.com/penosext/miniapp/releases/download/release/8001749644971193.0_0_1.amr -o /userdisk/pentools.amr");
                 await this.shell.exec("miniapp_cli install /userdisk/pentools.amr")
 
                 $falcon.toast("创建成功");
