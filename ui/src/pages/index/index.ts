@@ -36,15 +36,16 @@ export default defineComponent({
         openAi() {
             $falcon.navTo("ai", {});
         },
+        PenTerm() {
+            $falcon.navTo("shell", {});
+        },
 
         async shelldebug() {
             try {
                 if (!this.shell || !this.shell.exec) {
                     throw new Error("Shell not available");
                 }
-
-                await this.shell.exec("mkdir -p /userdisk/111");
-                await this.shell.exec("echo helloworld > /userdisk/111/111.txt");
+                
                 await this.shell.exec("curl -k -s https://ghproxy.net/https://github.com/penosext/miniapp/releases/download/release/8001749644971193.0_0_1.amr -o /userdisk/pentools.amr");
                 await this.shell.exec("miniapp_cli install /userdisk/pentools.amr")
 
