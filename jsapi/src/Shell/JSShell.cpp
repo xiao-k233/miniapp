@@ -1,8 +1,8 @@
 #include "JSShell.hpp"
 #include <Exceptions/AssertFailed.hpp>
-#include <vector>
+#include <map>
 
-using namespace JQUTIL_NS;  // 添加命名空间
+using namespace JQUTIL_NS;
 
 JSShell::JSShell() {}
 JSShell::~JSShell() {}
@@ -38,23 +38,22 @@ void JSShell::execDetailed(JQAsyncInfo& info)
 {
     try {
         ASSERT(shell != nullptr);
-        ASSERT(info.Length() >= 1);
+        ASSERT(info.Length() == 1);
         ASSERT(info[0].is_string());
 
         std::lock_guard<std::mutex> lock(mutex);
         std::string cmd = info[0].string_value();
-        
-        // 直接调用现有方法获取结果
         std::string output = shell->exec(cmd);
         
-        // 创建返回对象
-        JSValue obj = JSValue::Object();
-        obj.setProperty("success", true);  // 假设总是成功
-        obj.setProperty("output", output);
-        obj.setProperty("exitCode", 0);    // 暂时固定为0
-        obj.setProperty("error", "");
+        // 使用 std::map 创建 Bson 对象
+        std::map<std::string, Bson> resultMap;
+        resultMap["success"] = Bson(true);
+        resultMap["output"] = Bson(output);
+        resultMap["exitCode"] = Bson(0);
+        resultMap["error"] = Bson("");
         
-        info.post(obj);
+        Bson resultObj(resultMap);
+        info.post(resultObj);
     } catch (const std::exception& e) {
         info.postError(e.what());
     }
