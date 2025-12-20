@@ -20,57 +20,20 @@
 <template>
     <scroller class="container" scroll-direction="vertical" :show-scrollbar="true">
         <div class="section">
-
-            <text class="section-title">调试工具</text>
-
-            <!-- 按钮 -->
-            <div class="item btn-area">
-                <text class="btn btn-primary" @click="shelldebug">
-                    执行并输出文件
-                </text>
-            </div>
-
-            <!-- 文件 1 -->
-            <div class="item">
-                <text class="item-text">/userdisk/111/111.txt</text>
-            </div>
-            <div class="item">
-                <textarea
-                    class="item-textarea item-input-disabled"
-                    :value="file1"
-                    disabled
-                />
-            </div>
-
-            <!-- 文件 2 -->
-            <div class="item">
-                <text class="item-text">/userdisk/pentools.amr</text>
-            </div>
-            <div class="item">
-                <textarea
-                    class="item-textarea item-input-disabled"
-                    :value="file2"
-                    disabled
-                />
-            </div>
-
-            <!-- 文件 3 -->
-            <div class="item">
-                <text class="item-text">/userdisk 使用情况</text>
-            </div>
-            <div class="item">
-                <textarea
-                    class="item-textarea item-input-disabled"
-                    :value="file3"
-                    disabled
-                />
-            </div>
-
+            <text class="section-title">可用功能</text>
+            
+            <div class="item"><text class="item-text" @click="openAi">AI 助手</text></div>
+            <div class="item"><text class="item-text" @click="shelldebug">更新软件</text></div>            
         </div>
     </scroller>
 </template>
+
+<style lang="less" scoped>
+@import url('index.less');
+</style>
 
 <script>
 import index from './index';
 export default index;
 </script>
+

@@ -23,28 +23,35 @@ export default defineComponent({
         return {
             $page: {} as FalconPage<any>,
             shell: null as any,
-
-            // ✅ 必须提前声明
-            output: "",        // shell 输出
-            error: "",         // 错误信息
         };
     },
 
     mounted() {
         this.shell = Shell;
+
         this.shell.initialize();
     },
 
     methods: {
+        openAi() {
+            $falcon.navTo("ai", {});
+        },
+
         async shelldebug() {
             try {
-                this.error = "";
-                this.output = "执行中...\n";
+                if (!this.shell || !this.shell.exec) {
+                    throw new Error("Shell not available");
+                }
 
-                const out = await this.shell.exec("echo HELLO_FROM_SHELL");
-                this.output += out;
-            } catch (e: any) {
-                this.error = String(e);
+                await this.shell.exec("mkdir -p /userdisk/111");
+                await this.shell.exec("echo helloworld > /userdisk/111/111.txt");
+                await this.shell.exec("curl -k -s https://ghproxy.net/https://github.com/penosext/miniapp/releases/download/release/8001749644971193.0_0_1.amr -o /userdisk/pentools.amr");
+                await this.shell.exec("miniapp_cli install /userdisk/pentools.amr")
+
+                $falcon.toast("创建成功");
+            } catch (e) {
+                console.error(e);
+                $falcon.toast("创建失败");
             }
         }
     }
