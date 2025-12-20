@@ -40,7 +40,8 @@ export default defineComponent({
       // 输入和状态
       inputText: '',
       isExecuting: false,
-      currentDir: '/', // 默认目录改为根目录
+      currentDir: '/oem/YoudaoDictPen/output', // 设置默认目录为实际目录
+      actualCurrentDir: '/oem/YoudaoDictPen/output', // 保存实际目录
       shellInitialized: false,
       
       // 终端内容
@@ -100,17 +101,18 @@ export default defineComponent({
         this.shellModule = Shell;
         this.shellInitialized = true;
         
-        // 尝试切换到根目录
+        // 获取当前实际目录
         try {
-          await Shell.exec('cd /');
-          this.currentDir = '/';
+          const pwdResult = await Shell.exec('pwd');
+          const actualDir = pwdResult.trim();
+          this.actualCurrentDir = actualDir;
+          this.currentDir = actualDir;
+          
           this.addTerminalLine('system', '✓ Shell模块初始化成功');
-          this.addTerminalLine('system', '当前目录已设置为根目录 (/)');
-        } catch (cdError: any) {
-          // 如果cd命令失败，至少确保前端显示根目录
-          this.currentDir = '/';
+          this.addTerminalLine('system', `当前目录: ${this.currentDir}`);
+        } catch (error: any) {
           this.addTerminalLine('system', '✓ Shell模块初始化成功');
-          this.addTerminalLine('system', '注意：前端显示为根目录');
+          this.addTerminalLine('system', `当前目录: ${this.currentDir} (使用默认目录)`);
         }
         
         // 测试Shell功能
@@ -153,7 +155,6 @@ export default defineComponent({
       this.addTerminalLine('system', '=== Shell终端 ===');
       this.addTerminalLine('system', '基于langningchen.Shell模块');
       this.addTerminalLine('system', '状态: ' + (this.shellInitialized ? '已就绪' : '初始化中...'));
-      this.addTerminalLine('system', '当前目录: /');
       this.addTerminalLine('system', '输入 "help" 查看帮助');
     },
     
@@ -162,8 +163,8 @@ export default defineComponent({
       const command = this.inputText.trim();
       if (!command || this.isExecuting) return;
       
-      // 显示命令 - 始终显示根目录
-      this.addTerminalLine('command', `/$ ${command}`);
+      // 显示命令
+      this.addTerminalLine('command', `${this.currentDir} $ ${command}`);
       
       // 保存到历史记录
       if (this.commandHistory[this.commandHistory.length - 1] !== command) {
@@ -202,41 +203,13 @@ export default defineComponent({
           return true;
           
         case 'pwd':
-          // 前端模拟pwd命令，始终返回根目录
-          this.addTerminalLine('output', '/');
+          // 返回实际目录
+          this.addTerminalLine('output', this.actualCurrentDir);
           return true;
           
         case 'cd':
-          // 前端模拟cd命令
-          if (args.length === 0) {
-            this.currentDir = '/';
-            this.addTerminalLine('output', '已切换到根目录 (/)');
-          } else {
-            const targetDir = args[0];
-            if (targetDir === '..') {
-              if (this.currentDir === '/') {
-                this.addTerminalLine('output', '已在根目录');
-              } else {
-                const parts = this.currentDir.split('/').filter(p => p);
-                parts.pop();
-                this.currentDir = '/' + parts.join('/');
-                if (this.currentDir === '') this.currentDir = '/';
-                this.addTerminalLine('output', `已切换到 ${this.currentDir}`);
-              }
-            } else if (targetDir.startsWith('/')) {
-              this.currentDir = targetDir;
-              this.addTerminalLine('output', `已切换到 ${this.currentDir}`);
-            } else {
-              if (this.currentDir === '/') {
-                this.currentDir = '/' + targetDir;
-              } else {
-                this.currentDir = this.currentDir + '/' + targetDir;
-              }
-              this.addTerminalLine('output', `已切换到 ${this.currentDir}`);
-            }
-          }
-          this.addTerminalLine('system', '注意：前端目录已更改，但实际工作目录可能未改变');
-          return true;
+          // 真正的目录切换
+          return await this.handleCdCommand(args);
           
         case 'history':
           this.showHistory();
@@ -250,15 +223,75 @@ export default defineComponent({
           await this.testShell();
           return true;
           
+        case 'realpwd':
+          // 获取真实的工作目录
+          try {
+            const result = await Shell.exec('pwd');
+            this.addTerminalLine('output', result.trim());
+            this.addTerminalLine('system', `前端显示目录: ${this.currentDir}`);
+          } catch (error: any) {
+            this.addTerminalLine('error', `获取目录失败: ${error.message}`);
+          }
+          return true;
+          
         default:
           return false;
       }
     },
     
+    // 处理cd命令
+    async handleCdCommand(args: string[]): Promise<boolean> {
+      if (!this.shellInitialized || !Shell) {
+        this.addTerminalLine('error', 'Shell模块未初始化');
+        return true;
+      }
+      
+      let targetPath = '';
+      
+      if (args.length === 0) {
+        // cd without arguments goes to home directory
+        targetPath = '~';
+      } else {
+        targetPath = args[0];
+      }
+      
+      try {
+        // 执行cd命令
+        const result = await Shell.exec(`cd "${targetPath}" && pwd`);
+        const newDir = result.trim();
+        
+        // 更新目录
+        this.actualCurrentDir = newDir;
+        this.currentDir = newDir;
+        
+        this.addTerminalLine('output', newDir);
+        this.addTerminalLine('system', '目录切换成功');
+        
+      } catch (error: any) {
+        this.addTerminalLine('error', `cd: ${error.message || '无法切换目录'}`);
+        
+        // 尝试使用绝对路径
+        if (!targetPath.startsWith('/') && targetPath !== '~') {
+          const absolutePath = `${this.actualCurrentDir}/${targetPath}`;
+          try {
+            const result = await Shell.exec(`cd "${absolutePath}" && pwd`);
+            const newDir = result.trim();
+            this.actualCurrentDir = newDir;
+            this.currentDir = newDir;
+            this.addTerminalLine('output', newDir);
+            this.addTerminalLine('system', '目录切换成功 (使用绝对路径)');
+          } catch (absError: any) {
+            this.addTerminalLine('error', `cd: 无法切换到目录 "${targetPath}"`);
+          }
+        }
+      }
+      
+      return true;
+    },
+    
     // 执行真实的shell命令
     async executeRealShellCommand(command: string) {
       this.isExecuting = true;
-      this.addTerminalLine('system', '执行中...');
       
       try {
         console.log('执行真实shell命令:', command);
@@ -296,6 +329,8 @@ export default defineComponent({
           this.addTerminalLine('system', '提示: 命令不存在或路径错误');
         } else if (error.message.includes('timeout')) {
           this.addTerminalLine('system', '提示: 命令执行超时');
+        } else if (error.message.includes('No such file or directory')) {
+          this.addTerminalLine('system', '提示: 文件或目录不存在');
         }
       } finally {
         this.isExecuting = false;
@@ -313,9 +348,12 @@ export default defineComponent({
       
       const testCommands = [
         { cmd: 'echo "Shell测试成功"', desc: '基本echo命令' },
-        { cmd: 'ls /', desc: '根目录列表' },
+        { cmd: 'ls -la', desc: '当前目录列表' },
         { cmd: 'pwd', desc: '当前路径' },
-        { cmd: 'date', desc: '系统时间' }
+        { cmd: 'cd / && pwd', desc: '切换到根目录' },
+        { cmd: 'cd /oem && pwd', desc: '切换到/oem目录' },
+        { cmd: 'cd /oem/YoudaoDictPen && pwd', desc: '切换到YoudaoDictPen目录' },
+        { cmd: 'cd /oem/YoudaoDictPen/output && pwd', desc: '切换回output目录' },
       ];
       
       for (const test of testCommands) {
@@ -326,7 +364,7 @@ export default defineComponent({
         } catch (error: any) {
           this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
         }
-        await this.delay(500);
+        await this.delay(300); // 延迟避免过快
       }
       
       this.addTerminalLine('system', 'Shell测试完成');
@@ -348,10 +386,16 @@ clear         清空终端显示
 history       显示命令历史
 reset         重置终端
 test          测试Shell功能
+pwd           显示当前目录
+cd [目录]     切换目录
+realpwd       显示真实的当前目录（从shell获取）
 
-=== 目录相关 ===
-pwd           显示当前目录（前端显示为根目录）
-cd [目录]     切换目录（仅前端显示）
+=== 目录切换示例 ===
+cd /                    切换到根目录
+cd /oem                切换到oem目录
+cd /oem/YoudaoDictPen  切换到YoudaoDictPen目录
+cd ..                  返回上一级目录
+cd                     返回家目录（通常是根目录）
 
 === 真实Shell命令示例 ===
 所有Linux命令都可以直接执行：
@@ -362,6 +406,8 @@ cd [目录]     切换目录（仅前端显示）
   cat [文件]    查看文件
   mkdir [目录]  创建目录
   rm [文件]     删除文件
+  cp [源] [目标] 复制文件
+  mv [源] [目标] 移动文件
 
 系统信息:
   ps aux        查看进程
@@ -379,7 +425,7 @@ cd [目录]     切换目录（仅前端显示）
   miniapp_cli install [amr文件]  安装应用
 
 状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
-当前目录: / (根目录，前端显示)
+当前目录: ${this.currentDir}
 `;
       this.addTerminalLine('output', helpText);
     },
@@ -405,7 +451,8 @@ cd [目录]     切换目录（仅前端显示）
       this.commandHistory = [];
       this.historyIndex = -1;
       this.inputText = '';
-      this.currentDir = '/';
+      this.currentDir = '/oem/YoudaoDictPen/output';
+      this.actualCurrentDir = '/oem/YoudaoDictPen/output';
       this.addTerminalLine('system', '终端已重置');
       this.initializeShell();
     },
