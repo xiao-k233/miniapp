@@ -1,29 +1,58 @@
-<template>
-    <div class="container">
-        <!-- 输出内容区 -->
-        <scroller class="output-area" scroll-direction="vertical" :show-scrollbar="true">
-            <text class="output-text">{{ output }}</text>
-        </scroller>
+import { defineComponent } from 'vue';
+import { Shell } from 'langningchen';
+// 【关键修复】从 utils 目录导入真正的工具函数
+import { openSoftKeyboard } from '../../utils/softKeyboardUtils'; 
 
-        <!-- 输入控制区 -->
-        <div class="input-bar">
-            <text class="prompt">></text>
-            <div class="input-trigger" @click="openInput">
-                <text class="input-placeholder">{{ command || '点击输入命令...' }}</text>
-            </div>
-            <div class="btn-group">
-                <text class="btn run-btn" @click="runCommand">{{ busy ? '...' : '执行' }}</text>
-                <text class="btn clear-btn" @click="clearOutput">清屏</text>
-            </div>
-        </div>
-    </div>
-</template>
+export default defineComponent({
+    data() {
+        return {
+            shell: new Shell() as any,
+            command: "",
+            output: "--- Shell Ready ---\n",
+            busy: false,
+        };
+    },
 
-<style lang="less" scoped>
-@import url('index.less');
-</style>
+    mounted() {
+        this.shell.initialize();
+    },
 
-<script>
-import index from './index';
-export default index;
-</script>
+    methods: {
+        openInput() {
+            if (this.busy) return;
+            
+            // 使用源码中定义的 openSoftKeyboard
+            openSoftKeyboard(
+                () => this.command, // 获取当前值
+                (value: string) => { // 设置新值
+                    this.command = value;
+                    this.$forceUpdate();
+                }
+            );
+        },
+
+        async runCommand() {
+            if (!this.command || this.busy) return;
+
+            const cmd = this.command;
+            this.command = ""; 
+            this.busy = true;
+
+            this.output += `\n$ ${cmd}\n`;
+
+            try {
+                // 调用 Shell API
+                const res = await this.shell.exec(cmd);
+                this.output += (res || "(no output)") + "\n";
+            } catch (e: any) {
+                this.output += `ERROR: ${String(e)}\n`;
+            } finally {
+                this.busy = false;
+            }
+        },
+
+        clearOutput() {
+            this.output = "--- Shell Cleared ---\n";
+        }
+    }
+});
