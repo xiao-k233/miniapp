@@ -32,13 +32,6 @@ interface TerminalLine {
   timestamp: number;
 }
 
-interface QuickCommand {
-  id: string;
-  label: string;
-  command: string;
-  description: string;
-}
-
 export default defineComponent({
   data() {
     return {
@@ -47,7 +40,7 @@ export default defineComponent({
       // 输入和状态
       inputText: '',
       isExecuting: false,
-      currentDir: '/',
+      currentDir: '/', // 默认目录改为根目录
       shellInitialized: false,
       
       // 终端内容
@@ -59,20 +52,6 @@ export default defineComponent({
       
       // Shell模块引用
       shellModule: null as ShellAPI | null,
-      
-      // 快速命令配置
-      quickCommands: [
-        { id: 'ls', label: 'ls', command: 'ls -la', description: '列出文件' },
-        { id: 'pwd', label: 'pwd', command: 'pwd', description: '当前路径' },
-        { id: 'ps', label: 'ps', command: 'ps aux', description: '进程列表' },
-        { id: 'df', label: 'df', command: 'df -h', description: '磁盘空间' },
-        { id: 'date', label: 'date', command: 'date', description: '系统时间' },
-        { id: 'free', label: 'free', command: 'free -m', description: '内存使用' },
-        { id: 'system', label: '系统', command: 'uname -a', description: '系统信息' },
-        { id: 'network', label: '网络', command: 'ping -c 3 8.8.8.8', description: '网络测试' },
-        { id: 'clear', label: '清屏', command: 'clear', description: '清屏' },
-        { id: 'help', label: '帮助', command: 'help', description: '查看帮助' }
-      ] as QuickCommand[],
     };
   },
 
@@ -120,7 +99,19 @@ export default defineComponent({
         
         this.shellModule = Shell;
         this.shellInitialized = true;
-        this.addTerminalLine('system', '✓ Shell模块初始化成功');
+        
+        // 尝试切换到根目录
+        try {
+          await Shell.exec('cd /');
+          this.currentDir = '/';
+          this.addTerminalLine('system', '✓ Shell模块初始化成功');
+          this.addTerminalLine('system', '当前目录已设置为根目录 (/)');
+        } catch (cdError: any) {
+          // 如果cd命令失败，至少确保前端显示根目录
+          this.currentDir = '/';
+          this.addTerminalLine('system', '✓ Shell模块初始化成功');
+          this.addTerminalLine('system', '注意：前端显示为根目录');
+        }
         
         // 测试Shell功能
         setTimeout(async () => {
@@ -137,12 +128,6 @@ export default defineComponent({
         console.error('Shell模块初始化失败:', error);
         this.addTerminalLine('error', `✗ Shell模块初始化失败`);
         this.addTerminalLine('error', `错误信息: ${error.message}`);
-        
-        // 检查Shell对象的结构
-        console.log('Shell对象详情:', Shell);
-        if (Shell) {
-          console.log('Shell方法列表:', Object.keys(Shell));
-        }
         
         this.shellInitialized = false;
       }
@@ -168,6 +153,7 @@ export default defineComponent({
       this.addTerminalLine('system', '=== Shell终端 ===');
       this.addTerminalLine('system', '基于langningchen.Shell模块');
       this.addTerminalLine('system', '状态: ' + (this.shellInitialized ? '已就绪' : '初始化中...'));
+      this.addTerminalLine('system', '当前目录: /');
       this.addTerminalLine('system', '输入 "help" 查看帮助');
     },
     
@@ -176,8 +162,8 @@ export default defineComponent({
       const command = this.inputText.trim();
       if (!command || this.isExecuting) return;
       
-      // 显示命令
-      this.addTerminalLine('command', `${this.currentDir} $ ${command}`);
+      // 显示命令 - 始终显示根目录
+      this.addTerminalLine('command', `/$ ${command}`);
       
       // 保存到历史记录
       if (this.commandHistory[this.commandHistory.length - 1] !== command) {
@@ -186,7 +172,7 @@ export default defineComponent({
       this.historyIndex = this.commandHistory.length;
       this.inputText = '';
       
-      // 处理内置命令（这些是前端模拟的，不是真实的shell命令）
+      // 处理内置命令
       if (await this.handleBuiltinCommand(command)) {
         return;
       }
@@ -215,17 +201,42 @@ export default defineComponent({
           this.clearTerminal();
           return true;
           
-        case 'echo':
-          // 这里不再处理echo，交给真实的shell
-          return false;
-          
         case 'pwd':
-          // 这里不再处理pwd，交给真实的shell
-          return false;
+          // 前端模拟pwd命令，始终返回根目录
+          this.addTerminalLine('output', '/');
+          return true;
           
         case 'cd':
-          // 这里不再处理cd，交给真实的shell
-          return false;
+          // 前端模拟cd命令
+          if (args.length === 0) {
+            this.currentDir = '/';
+            this.addTerminalLine('output', '已切换到根目录 (/)');
+          } else {
+            const targetDir = args[0];
+            if (targetDir === '..') {
+              if (this.currentDir === '/') {
+                this.addTerminalLine('output', '已在根目录');
+              } else {
+                const parts = this.currentDir.split('/').filter(p => p);
+                parts.pop();
+                this.currentDir = '/' + parts.join('/');
+                if (this.currentDir === '') this.currentDir = '/';
+                this.addTerminalLine('output', `已切换到 ${this.currentDir}`);
+              }
+            } else if (targetDir.startsWith('/')) {
+              this.currentDir = targetDir;
+              this.addTerminalLine('output', `已切换到 ${this.currentDir}`);
+            } else {
+              if (this.currentDir === '/') {
+                this.currentDir = '/' + targetDir;
+              } else {
+                this.currentDir = this.currentDir + '/' + targetDir;
+              }
+              this.addTerminalLine('output', `已切换到 ${this.currentDir}`);
+            }
+          }
+          this.addTerminalLine('system', '注意：前端目录已更改，但实际工作目录可能未改变');
+          return true;
           
         case 'history':
           this.showHistory();
@@ -315,7 +326,7 @@ export default defineComponent({
         } catch (error: any) {
           this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
         }
-        await this.delay(500); // 延迟避免过快
+        await this.delay(500);
       }
       
       this.addTerminalLine('system', 'Shell测试完成');
@@ -338,14 +349,16 @@ history       显示命令历史
 reset         重置终端
 test          测试Shell功能
 
+=== 目录相关 ===
+pwd           显示当前目录（前端显示为根目录）
+cd [目录]     切换目录（仅前端显示）
+
 === 真实Shell命令示例 ===
 所有Linux命令都可以直接执行：
 
 文件操作:
   ls            列出文件
   ls -la        详细文件列表
-  cd [目录]     切换目录
-  pwd           显示当前目录
   cat [文件]    查看文件
   mkdir [目录]  创建目录
   rm [文件]     删除文件
@@ -366,6 +379,7 @@ test          测试Shell功能
   miniapp_cli install [amr文件]  安装应用
 
 状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
+当前目录: / (根目录，前端显示)
 `;
       this.addTerminalLine('output', helpText);
     },
@@ -391,6 +405,7 @@ test          测试Shell功能
       this.commandHistory = [];
       this.historyIndex = -1;
       this.inputText = '';
+      this.currentDir = '/';
       this.addTerminalLine('system', '终端已重置');
       this.initializeShell();
     },
@@ -404,7 +419,7 @@ test          测试Shell功能
     // 滚动到底部
     scrollToBottom() {
       this.$nextTick(() => {
-        const scroller = this.$refs.terminalScroller as any;
+        const scroller = this.$refs.scroller as any;
         if (scroller && scroller.scrollTo) {
           setTimeout(() => {
             scroller.scrollTo({
@@ -435,12 +450,6 @@ test          测试Shell功能
           this.inputText = '';
         }
       }
-    },
-    
-    // 执行快速命令
-    executeQuickCommand(command: string) {
-      this.inputText = command;
-      this.executeCommand();
     },
     
     // 打开软键盘

@@ -40,26 +40,6 @@
       </scroller>
     </div>
 
-    <!-- 快速命令区域 -->
-    <div class="quick-commands-section">
-      <text class="section-title">快速命令</text>
-      <scroller 
-        class="quick-commands-container"
-        scroll-direction="horizontal"
-        :show-scrollbar="true"
-      >
-        <div 
-          v-for="cmd in quickCommands"
-          :key="cmd.label"
-          class="quick-command"
-          @click="executeQuickCommand(cmd.command)"
-        >
-          <text class="quick-label">{{ cmd.label }}</text>
-          <text class="quick-desc">{{ cmd.description }}</text>
-        </div>
-      </scroller>
-    </div>
-
     <!-- 输入区域 -->
     <div class="input-section">
       <div class="input-container" @click="openKeyboard">
@@ -78,7 +58,7 @@
           class="btn btn-clear"
           @click="clearTerminal"
         >
-          清屏
+          清空
         </text>
       </div>
     </div>
