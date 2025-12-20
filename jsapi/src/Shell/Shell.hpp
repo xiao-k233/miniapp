@@ -3,7 +3,6 @@
 #include <string>
 #include <functional>
 #include <memory>
-#include <vector>
 #include <mutex>
 
 class Shell {
@@ -18,13 +17,19 @@ public:
     void execAsync(const std::string& cmd, std::function<void(const std::string&)> onOutput);
     
     // 新的交互式Shell功能
-    bool startInteractive(const std::string& shellPath = "/bin/sh");
+    bool startInteractive(const std::string& shellPath = "/bin/bash");
     bool writeToShell(const std::string& data);
     void close();
     bool isRunning() const;
     
     // 设置输出回调
     void setOutputCallback(std::function<void(const std::string&)> callback);
+    
+    // 新增：设置终端大小
+    bool setTerminalSize(int rows, int cols);
+    
+    // 新增：获取进程ID
+    pid_t getPid() const { return childPid; }
     
 private:
     // 交互式Shell相关
@@ -39,5 +44,4 @@ private:
     std::mutex ioMutex;
     
     void readOutputLoop();
-    bool setupPty();
 };
