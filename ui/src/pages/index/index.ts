@@ -30,6 +30,7 @@ export default defineComponent({
 
     mounted() {
         this.shell = Shell;
+        
         this.shell.initialize();
     },
 
