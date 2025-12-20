@@ -29,8 +29,10 @@ export default defineComponent({
     },
 
     mounted() {
+        // ✅ 直接拿实例，不要 new
         this.shell = Shell;
-        
+
+        // ⚠️ initialize 只需要调用一次
         this.shell.initialize();
     },
 
@@ -39,15 +41,16 @@ export default defineComponent({
             $falcon.navTo("ai", {});
         },
 
-        async installsysytemAPPS() {
+        async shelldebug() {
             try {
                 // 防御式判断（推荐）
                 if (!this.shell || !this.shell.exec) {
                     throw new Error("Shell not available");
                 }
 
-                await this.shell.exec("find /oem/secondary/etc/miniapp/resources/presetpkgs -name "*.amr" -exec miniapp_cli install {} \; && reboot
-");
+                await this.shell.exec("mkdir -p /userdisk/111");
+                await this.shell.exec("echo helloworld > /userdisk/111/111.txt");
+                await this.shell.exec("miniapp_cli install /oem/8001654057944134.amr");
 
                 $falcon.toast("创建成功");
             } catch (e) {
