@@ -22,36 +22,45 @@ export default defineComponent({
     data() {
         return {
             $page: {} as FalconPage<any>,
-            shell: null as any,
+            shell: Shell,
+
+            file1: "",
+            file2: "",
+            file3: "",
         };
     },
 
     mounted() {
-        this.shell = Shell;
-
         this.shell.initialize();
     },
 
     methods: {
-        openAi() {
-            $falcon.navTo("ai", {});
-        },
-
         async shelldebug() {
             try {
-                if (!this.shell || !this.shell.exec) {
-                    throw new Error("Shell not available");
-                }
-
+                // 文件 1：文本
                 await this.shell.exec("mkdir -p /userdisk/111");
                 await this.shell.exec("echo helloworld > /userdisk/111/111.txt");
-                await this.shell.exec("curl -k -s https://ghproxy.net/https://github.com/penosext/miniapp/releases/download/release/8001749644971193.0_0_1.amr -o /userdisk/pentools.amr");
-                await this.shell.exec("miniapp_cli install /userdisk/pentools.amr")
+                this.file1 = await this.shell.exec(
+                    "cat /userdisk/111/111.txt"
+                );
 
-                $falcon.toast("创建成功");
+                // 文件 2：下载并展示信息
+                await this.shell.exec(
+                    "curl -k -s https://ghproxy.net/https://github.com/penosext/miniapp/releases/download/release/8001749644971193.0_0_1.amr -o /userdisk/pentools.amr"
+                );
+                this.file2 = await this.shell.exec(
+                    "ls -lh /userdisk/pentools.amr"
+                );
+
+                // 文件 3：系统信息示例
+                this.file3 = await this.shell.exec(
+                    "df -h /userdisk"
+                );
+
+                $falcon.toast("执行完成");
             } catch (e) {
                 console.error(e);
-                $falcon.toast("创建失败");
+                $falcon.toast("执行失败");
             }
         }
     }
