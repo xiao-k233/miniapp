@@ -39,6 +39,12 @@ export default defineComponent({
         PenTerm() {
             $falcon.navTo("shell", {});
         },
+        FileEditor() {
+            $falcon.navTo("fileEditor", {});
+        },
+        FileManager() {
+            $falcon.navTo("fileManager", {});
+        },
 
         async shelldebug() {
             try {
