@@ -62,14 +62,14 @@ void JSShell::createInteractiveSession(JQFunctionInfo& info) {
 
 void JSShell::startInteractive(JQAsyncInfo& info) {
     try {
-        ASSERT(info.Length() >= 1 && info.Length() <= 2);
+        ASSERT(info.Length() >= 2 && info.Length() <= 3);
         
-        int sessionId = info[0].int32_value();
-        std::string command = info[1].string_value();
+        JSContext* ctx = info.GetContext();
+        int sessionId = JQNumber(ctx, info[0]).getInt32();
+        std::string command = JQString(ctx, info[1]).getString();
         
         Shell::PTYConfig config;
         if (info.Length() == 3 && info[2].is_object()) {
-            JSContext* ctx = info.GetContext();
             JQObject obj(ctx, info[2]);
             
             if (obj.has("rows")) {
@@ -120,8 +120,9 @@ void JSShell::writeToSession(JQFunctionInfo& info) {
     try {
         ASSERT(info.Length() == 2);
         
-        int sessionId = info[0].int32_value();
-        std::string data = info[1].string_value();
+        JSContext* ctx = info.GetContext();
+        int sessionId = JQNumber(ctx, info[0]).getInt32();
+        std::string data = JQString(ctx, info[1]).getString();
         
         auto* session = getSession(sessionId);
         ASSERT(session != nullptr);
@@ -137,7 +138,8 @@ void JSShell::readFromSession(JQFunctionInfo& info) {
     try {
         ASSERT(info.Length() == 1);
         
-        int sessionId = info[0].int32_value();
+        JSContext* ctx = info.GetContext();
+        int sessionId = JQNumber(ctx, info[0]).getInt32();
         
         auto* session = getSession(sessionId);
         ASSERT(session != nullptr);
@@ -153,9 +155,10 @@ void JSShell::resizeSession(JQFunctionInfo& info) {
     try {
         ASSERT(info.Length() == 3);
         
-        int sessionId = info[0].int32_value();
-        int rows = info[1].int32_value();
-        int cols = info[2].int32_value();
+        JSContext* ctx = info.GetContext();
+        int sessionId = JQNumber(ctx, info[0]).getInt32();
+        int rows = JQNumber(ctx, info[1]).getInt32();
+        int cols = JQNumber(ctx, info[2]).getInt32();
         
         auto* session = getSession(sessionId);
         ASSERT(session != nullptr);
@@ -171,8 +174,9 @@ void JSShell::sendSignalToSession(JQFunctionInfo& info) {
     try {
         ASSERT(info.Length() == 2);
         
-        int sessionId = info[0].int32_value();
-        int signal = info[1].int32_value();
+        JSContext* ctx = info.GetContext();
+        int sessionId = JQNumber(ctx, info[0]).getInt32();
+        int signal = JQNumber(ctx, info[1]).getInt32();
         
         auto* session = getSession(sessionId);
         ASSERT(session != nullptr);
@@ -188,7 +192,8 @@ void JSShell::terminateSession(JQFunctionInfo& info) {
     try {
         ASSERT(info.Length() == 1);
         
-        int sessionId = info[0].int32_value();
+        JSContext* ctx = info.GetContext();
+        int sessionId = JQNumber(ctx, info[0]).getInt32();
         
         auto* session = getSession(sessionId);
         ASSERT(session != nullptr);
@@ -206,7 +211,8 @@ void JSShell::isSessionRunning(JQFunctionInfo& info) {
     try {
         ASSERT(info.Length() == 1);
         
-        int sessionId = info[0].int32_value();
+        JSContext* ctx = info.GetContext();
+        int sessionId = JQNumber(ctx, info[0]).getInt32();
         
         auto* session = getSession(sessionId);
         ASSERT(session != nullptr);
@@ -221,7 +227,8 @@ void JSShell::getSessionPid(JQFunctionInfo& info) {
     try {
         ASSERT(info.Length() == 1);
         
-        int sessionId = info[0].int32_value();
+        JSContext* ctx = info.GetContext();
+        int sessionId = JQNumber(ctx, info[0]).getInt32();
         
         auto* session = getSession(sessionId);
         ASSERT(session != nullptr);
