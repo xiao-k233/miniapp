@@ -70,23 +70,45 @@ void JSShell::startInteractive(JQAsyncInfo& info) {
         
         Shell::PTYConfig config;
         if (info.Length() == 3 && info[2].is_object()) {
-            JQObject obj(ctx, info[2]);
+            JSValue configObj = info[2];
             
-            if (obj.has("rows")) {
-                config.rows = JQNumber(ctx, obj.get("rows")).getInt32();
-            }
-            if (obj.has("cols")) {
-                config.cols = JQNumber(ctx, obj.get("cols")).getInt32();
-            }
-            if (obj.has("echo")) {
-                config.echo = JQBoolean(ctx, obj.get("echo")).getBoolean();
-            }
-            if (obj.has("canonical")) {
-                config.canonical = JQBoolean(ctx, obj.get("canonical")).getBoolean();
-            }
-            if (obj.has("termType")) {
-                config.termType = JQString(ctx, obj.get("termType")).getString();
-            }
+            // 使用 JS_GetPropertyStr 获取对象属性
+            auto getIntProp = [ctx, configObj](const char* prop, int defaultValue) {
+                JSValue val = JS_GetPropertyStr(ctx, configObj, prop);
+                int result = defaultValue;
+                if (!JS_IsUndefined(val)) {
+                    result = JQNumber(ctx, val).getInt32();
+                    JS_FreeValue(ctx, val);
+                }
+                return result;
+            };
+            
+            auto getBoolProp = [ctx, configObj](const char* prop, bool defaultValue) {
+                JSValue val = JS_GetPropertyStr(ctx, configObj, prop);
+                bool result = defaultValue;
+                if (!JS_IsUndefined(val)) {
+                    // 注意：这里使用 JS_ToBool 而不是 JQBoolean
+                    result = JS_ToBool(ctx, val) != 0;
+                    JS_FreeValue(ctx, val);
+                }
+                return result;
+            };
+            
+            auto getStringProp = [ctx, configObj](const char* prop, const std::string& defaultValue) {
+                JSValue val = JS_GetPropertyStr(ctx, configObj, prop);
+                std::string result = defaultValue;
+                if (!JS_IsUndefined(val)) {
+                    result = JQString(ctx, val).getString();
+                    JS_FreeValue(ctx, val);
+                }
+                return result;
+            };
+            
+            config.rows = getIntProp("rows", 24);
+            config.cols = getIntProp("cols", 80);
+            config.echo = getBoolProp("echo", false);
+            config.canonical = getBoolProp("canonical", true);
+            config.termType = getStringProp("termType", "xterm-256color");
         }
         
         auto* session = getSession(sessionId);
