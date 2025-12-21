@@ -28,10 +28,14 @@ jobs:
           npm install -g pnpm@latest-10
           pnpm install --verbose -C ./ui
           mkdir -p ./jsapi/toolchains
-          wget -q ${{ env.TOOLCHAIN_URL }} -O ./jsapi/toolchains/file.tar.bz2
-          tar -xjf ./jsapi/toolchains/file.tar.bz2 -C ./jsapi/toolchains
+          wget -q ${{ env.TOOLCHAIN_URL }} -O ./jsapi/toolchains/armv7-eabihf--uclibc--bleeding-edge-2018.11-1.tar.bz2
+          wget -q https://github.com/penosext/Cloudpan/releases/download/toolchains/armv7-eabihf--glibc--stable-2024.02-1.tar.bz2 -O ./jsapi/toolchains/armv7-eabihf--glibc--stable-2024.02-1.tar.bz2
+          tar -xjf ./jsapi/toolchains/armv7-eabihf--uclibc--bleeding-edge-2018.11-1.tar.bz2 -C ./jsapi/toolchains
+          tar -xjf ./jsapi/toolchains/armv7-eabihf--glibc--stable-2024.02-1.tar.bz2 -C ./jsapi/toolchains
           wget -q ${{ env.VERSIONINFO_URL }}
+          wget -q https://github.com/penosext/Cloudpan/releases/download/PenX5/X5versionInfo.tar.gz
           tar -xf A6PversionInfo.tar.gz -C ./jsapi
+          tar -xf X5versionInfo.tar.gz -C ./jsapi
 
       - name: Build
         run: |
