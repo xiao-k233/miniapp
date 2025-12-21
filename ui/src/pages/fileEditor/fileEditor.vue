@@ -21,10 +21,9 @@
   <div class="editor-container">
     <!-- 标题栏 -->
     <div class="editor-header">
-      <text class="header-title">{{ fileName }}</text>
+      <text class="header-title">{{ displayTitle }}</text>
       <div class="header-actions">
         <text v-if="isModified" style="color: #ffc107; font-size: 12px;">已修改</text>
-        <text @click="exitEditor" class="toolbar-btn toolbar-btn-danger">关闭</text>
       </div>
     </div>
     
@@ -63,18 +62,15 @@
     
     <!-- 工具栏 -->
     <div class="editor-toolbar">
-      <div class="toolbar-left">
-        <text @click="openKeyboard" class="toolbar-btn">键盘</text>
-        <text @click="saveFile" :class="'toolbar-btn' + (canSave ? ' toolbar-btn-success' : '')" 
-              :style="{ opacity: canSave ? 1 : 0.5 }">保存</text>
-        <text @click="showSaveAsDialog" class="toolbar-btn toolbar-btn-warning">另存为</text>
-      </div>
-      <div class="toolbar-right">
-        <text @click="showFindDialog" class="toolbar-btn">查找</text>
-        <text @click="findPrev" class="toolbar-btn">上一条</text>
-        <text @click="findNext" class="toolbar-btn">下一条</text>
-        <text @click="showGoToDialog" class="toolbar-btn">跳转行</text>
-      </div>
+      <text @click="openKeyboard" class="toolbar-btn">键盘</text>
+      <text @click="saveFile" :class="'toolbar-btn' + (canSave ? ' toolbar-btn-success' : '')" 
+            :style="{ opacity: canSave ? 1 : 0.5 }">保存</text>
+      <text @click="showSaveAsDialog" class="toolbar-btn toolbar-btn-warning">另存为</text>
+      <text @click="clearContent" class="toolbar-btn toolbar-btn-danger">清空</text>
+      <text @click="showFindDialog" class="toolbar-btn">查找</text>
+      <text @click="findPrev" class="toolbar-btn">上一条</text>
+      <text @click="findNext" class="toolbar-btn">下一条</text>
+      <text @click="showGoToDialog" class="toolbar-btn">跳转行</text>
     </div>
     
     <!-- 查找对话框 -->
@@ -102,15 +98,6 @@
       </div>
       <div class="modal-buttons">
         <text @click="showGoToModal = false" class="toolbar-btn toolbar-btn-danger">取消</text>
-      </div>
-    </div>
-    
-    <!-- 确认对话框 - 保留，但仅用于保存并退出 -->
-    <div v-if="showConfirmModal" class="save-confirm">
-      <text class="confirm-title">{{ confirmTitle }}</text>
-      <div class="confirm-buttons">
-        <text @click="executeConfirmAction(confirmAction)" class="toolbar-btn toolbar-btn-danger">确定</text>
-        <text @click="showConfirmModal = false" class="toolbar-btn">取消</text>
       </div>
     </div>
     

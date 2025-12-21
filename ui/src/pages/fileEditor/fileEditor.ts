@@ -50,9 +50,6 @@ const fileEditor = defineComponent({
       showSaveAsModal: false,
       showFindModal: false,
       showGoToModal: false,
-      showConfirmModal: false,
-      confirmTitle: '',
-      confirmAction: '' as string,
       
       // 查找相关
       findText: '',
@@ -71,7 +68,7 @@ const fileEditor = defineComponent({
   async mounted() {
     const options = this.$page.loadOptions;
     this.filePath = options.filePath || '';
-    this.fileName = this.getFileName(this.filePath);
+    this.fileName = ''; // 不显示文件名
     this.isNewFile = !this.filePath;
     this.returnTo = options.returnTo || '';
     this.returnPath = options.returnPath || '/';
@@ -117,6 +114,14 @@ const fileEditor = defineComponent({
     
     canSave(): boolean {
       return this.shellInitialized && (this.isNewFile || this.fileContent !== this.originalContent);
+    },
+    
+    // 显示标题
+    displayTitle(): string {
+      if (this.isNewFile) {
+        return '新文件';
+      }
+      return '文件编辑器';
     }
   },
 
@@ -142,7 +147,7 @@ const fileEditor = defineComponent({
       }
     },
     
-    // 获取文件名
+    // 获取文件名（仅内部使用）
     getFileName(path: string): string {
       if (!path) return '新文件.txt';
       
@@ -223,6 +228,9 @@ const fileEditor = defineComponent({
         
         this.originalContent = this.fileContent;
         this.isModified = false;
+        
+        // 更新内部文件名
+        this.fileName = this.getFileName(this.filePath);
         
         // 保存成功后触发事件，通知文件管理器刷新
         $falcon.trigger('file_saved', this.filePath);
@@ -328,7 +336,7 @@ const fileEditor = defineComponent({
     
     // 显示另存为对话框
     showSaveAsDialog() {
-      const defaultName = this.fileName || '新文件.txt';
+      const defaultName = this.getFileName(this.filePath) || '新文件.txt';
       openSoftKeyboard(
         () => this.filePath || `/tmp/${defaultName}`,
         (newPath) => {
@@ -449,66 +457,27 @@ const fileEditor = defineComponent({
       );
     },
     
-    // 删除清空功能，不再需要clearContent方法
-    // 删除确认操作中的clear分支
-    // 执行确认操作
-    executeConfirmAction(action: string) {
-      this.showConfirmModal = false;
-      
-      switch (action) {
-        case 'exit':
-          this.quickExit();
-          break;
-        case 'save_and_exit':
-          this.saveAndExit();
-          break;
+    // 清空内容
+    clearContent() {
+      if (this.fileContent.trim()) {
+        this.fileContent = '';
+        this.isModified = this.fileContent !== this.originalContent;
+        this.updateStats();
+        showSuccess('内容已清空');
       }
     },
     
-    // 保存并退出
-    async saveAndExit() {
-      await this.saveFile();
-      this.quickExit();
-    },
-    
-    // 显示确认对话框 - 简化，只用于保存并退出
-    showConfirm(message: string, action: string) {
-      this.confirmTitle = message;
-      this.confirmAction = action;
-      this.showConfirmModal = true;
-    },
-    
-    // 退出编辑器 - 修改：直接退出，不提示保存
-    exitEditor() {
-      // 直接退出，不保存修改
-      this.quickExit();
-    },
-    
-    // 快速退出（不保存） - 这是主要退出方式
-    quickExit() {
-      // 如果是从文件管理器跳转过来的，返回时刷新
-      if (this.returnTo === 'fileManager') {
-        $falcon.navTo('fileManager', { 
-          refresh: true,
-          path: this.returnPath 
-        });
-      } else {
-        this.$page.finish();
-      }
-    },
-    
-    // 处理返回键 - 修改：直接退出，不提示保存
+    // 处理返回键
     handleBackPress() {
-      if (this.showSaveAsModal || this.showFindModal || this.showGoToModal || this.showConfirmModal) {
+      if (this.showSaveAsModal || this.showFindModal || this.showGoToModal) {
         this.showSaveAsModal = false;
         this.showFindModal = false;
         this.showGoToModal = false;
-        this.showConfirmModal = false;
         return;
       }
       
-      // 直接退出，不提示保存
-      this.quickExit();
+      // 直接退出，不显示确认对话框
+      this.$page.finish();
     },
     
     // 获取文件信息
