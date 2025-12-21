@@ -39,6 +39,9 @@ export default defineComponent({
         PenTerm() {
             $falcon.navTo("shell", {});
         },
+        Deviceinfo() {
+            $falcon.navTo("deviceinfo", {});
+        },
         FileEditor() {
             $falcon.navTo("fileEditor", {});
         },
