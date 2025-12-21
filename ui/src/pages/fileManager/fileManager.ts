@@ -44,7 +44,7 @@ export interface FileItem {
 export default defineComponent({
   data() {
     return {
-      $page: {} as FalconPage<FileManagerOptions>,
+      $page: {} as any,
       
       // 文件系统状态
       currentPath: '/',
@@ -77,13 +77,13 @@ export default defineComponent({
     console.log('文件管理器页面加载...');
     
     // 获取初始路径
-    const options = this.$page.loadOptions;
+    const options = (this as any).$page.loadOptions || {};
     this.currentPath = options.path || '/';
     console.log('初始路径:', this.currentPath);
     
     // 设置页面返回键处理
-    this.$page.$npage.setSupportBack(true);
-    this.$page.$npage.on("backpressed", this.handleBackPress);
+    (this as any).$page.$npage.setSupportBack(true);
+    (this as any).$page.$npage.on("backpressed", this.handleBackPress);
     
     // 监听文件保存事件
     $falcon.on('file_saved', this.handleFileSaved);
@@ -92,7 +92,7 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.$page.$npage.off("backpressed", this.handleBackPress);
+    (this as any).$page.$npage.off("backpressed", this.handleBackPress);
     $falcon.off('file_saved', this.handleFileSaved);
   },
 
@@ -142,11 +142,11 @@ export default defineComponent({
           throw new Error('Shell对象未定义');
         }
         
-        if (typeof Shell.initialize !== 'function') {
+        if (typeof (Shell as any).initialize !== 'function') {
           throw new Error('Shell.initialize方法不存在');
         }
         
-        await Shell.initialize();
+        await (Shell as any).initialize();
         this.shellInitialized = true;
         console.log('Shell模块初始化成功');
         
@@ -160,9 +160,9 @@ export default defineComponent({
       }
     },
     
-    // 加载目录 - 改进版本
+    // 加载目录
     async loadDirectory() {
-      if (!this.shellInitialized || !Shell) {
+      if (!this.shellInitialized) {
         showError('Shell模块未初始化');
         return;
       }
@@ -173,42 +173,15 @@ export default defineComponent({
         
         console.log('加载目录:', this.currentPath);
         
-        // 确保路径格式正确
-        let path = this.currentPath;
-        if (!path.startsWith('/')) {
-          path = '/' + path;
-        }
-        if (path !== '/' && path.endsWith('/')) {
-          path = path.slice(0, -1);
-        }
-        this.currentPath = path;
-        console.log('标准化路径:', path);
-        
-        // 方法1: 使用简单的ls命令
-        const listCmd = `cd "${path}" && ls -la`;
+        // 使用简单的ls命令
+        const listCmd = `cd "${this.currentPath}" && ls -la`;
         console.log('执行命令:', listCmd);
         
-        let result = '';
-        try {
-          result = await Shell.exec(listCmd);
-          console.log('原始输出:', result);
-        } catch (error: any) {
-          console.error('ls命令失败:', error);
-          // 尝试备用方法
-          result = await this.loadDirectoryFallback(path);
-        }
-        
-        if (!result || result.trim() === '') {
-          console.log('目录为空');
-          this.fileList = [];
-          this.updateStats();
-          return;
-        }
+        const result = await (Shell as any).exec(listCmd);
+        console.log('原始输出:', result);
         
         // 解析结果
-        const files = this.parseLsOutput(result);
-        console.log('解析出', files.length, '个文件/目录');
-        this.fileList = files;
+        this.parseLsOutput(result);
         
         // 更新统计信息
         this.updateStats();
@@ -217,44 +190,14 @@ export default defineComponent({
         console.error('加载目录失败:', error);
         showError(`加载目录失败: ${error.message}`);
         this.fileList = [];
-        
-        // 如果当前路径不是根目录，尝试返回根目录
-        if (this.currentPath !== '/') {
-          this.currentPath = '/';
-          await this.loadDirectory();
-        }
       } finally {
         this.isLoading = false;
         hideLoading();
       }
     },
-    
-    // 备用加载方法
-    async loadDirectoryFallback(path: string): Promise<string> {
-      try {
-        // 使用简单的ls命令，不包含详细信息
-        const cmd = `cd "${path}" && ls -1`;
-        const result = await Shell.exec(cmd);
-        const files = result.trim().split('\n').filter(name => name && name !== '.' && name !== '..');
-        
-        // 构建简单的目录列表
-        let lsOutput = `total 0\n`;
-        files.forEach(name => {
-          // 判断是文件还是目录
-          const statCmd = `cd "${path}" && if [ -d "${name}" ]; then echo "d"; else echo "-"; fi`;
-          const type = (await Shell.exec(statCmd)).trim();
-          lsOutput += `${type === 'd' ? 'd' : '-'}rwxr-xr-x 1 root root 0 0 0 0 ${name}\n`;
-        });
-        
-        return lsOutput;
-      } catch (error) {
-        console.error('备用加载方法失败:', error);
-        throw error;
-      }
-    },
-    
+
     // 解析ls输出
-    parseLsOutput(lsOutput: string): FileItem[] {
+    parseLsOutput(lsOutput: string) {
       const lines = lsOutput.trim().split('\n');
       const files: FileItem[] = [];
       
@@ -269,15 +212,12 @@ export default defineComponent({
         }
       }
       
-      return files;
+      this.fileList = files;
+      console.log('解析出', files.length, '个文件/目录');
     },
-    
+
     // 解析ls单行
     parseLsLine(line: string): FileItem | null {
-      // ls -la 输出格式:
-      // drwxr-xr-x 2 root root 4096 Jan 1 2020 directory
-      // -rw-r--r-- 1 root root 1024 Jan 1 2020 file.txt
-      
       // 分割并过滤空字符串
       const parts = line.split(/\s+/).filter(p => p);
       if (parts.length < 8) {
@@ -286,7 +226,7 @@ export default defineComponent({
       }
       
       const permissions = parts[0];
-      const name = parts.slice(7).join(' '); // 文件名可能包含空格
+      const name = parts.slice(7).join(' ');
       
       // 跳过当前目录和上级目录
       if (name === '.' || name === '..') {
@@ -384,7 +324,7 @@ export default defineComponent({
       this.selectedCount = 0;
     },
     
-    // 打开文件或目录 - 修复版本
+    // 打开文件或目录
     async openItem(item: FileItem) {
       console.log('打开项目:', item.name, '类型:', item.type, '路径:', item.fullPath);
       
@@ -404,15 +344,6 @@ export default defineComponent({
       console.log('打开文件:', file.fullPath);
       
       try {
-        // 检查文件是否存在
-        const checkCmd = `if [ -f "${file.fullPath}" ]; then echo "exists"; else echo "not exists"; fi`;
-        const existsResult = await Shell.exec(checkCmd);
-        
-        if (existsResult.trim() === 'not exists') {
-          showError(`文件不存在: ${file.fullPath}`);
-          return;
-        }
-        
         // 判断文件类型，如果是文本文件则用编辑器打开
         const isTextFile = file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash|log|conf|ini|yml|yaml)$/i);
         
@@ -426,7 +357,6 @@ export default defineComponent({
         } else {
           showInfo(`打开文件: ${file.name} (暂不支持此文件类型的预览)`);
         }
-        
       } catch (error: any) {
         console.error('打开文件失败:', error);
         showError(`打开文件失败: ${error.message}`);
@@ -458,7 +388,7 @@ export default defineComponent({
     async createNewFile() {
       openSoftKeyboard(
         () => '',
-        async (fileName) => {
+        async (fileName: string) => {
           if (!fileName.trim()) {
             showWarning('文件名不能为空');
             return;
@@ -474,7 +404,7 @@ export default defineComponent({
             console.log('创建文件:', fullPath);
             
             // 创建空文件
-            await Shell.exec(`touch "${fullPath}"`);
+            await (Shell as any).exec(`touch "${fullPath}"`);
             
             showSuccess(`文件创建成功: ${fileName}`);
             await this.loadDirectory();
@@ -486,7 +416,7 @@ export default defineComponent({
             hideLoading();
           }
         },
-        (value) => {
+        (value: string) => {
           if (!value.trim()) return '请输入文件名';
           if (value.includes('/')) return '文件名不能包含斜杠';
           return undefined;
@@ -498,7 +428,7 @@ export default defineComponent({
     async createNewDirectory() {
       openSoftKeyboard(
         () => '',
-        async (dirName) => {
+        async (dirName: string) => {
           if (!dirName.trim()) {
             showWarning('目录名不能为空');
             return;
@@ -514,7 +444,7 @@ export default defineComponent({
             console.log('创建目录:', fullPath);
             
             // 创建目录
-            await Shell.exec(`mkdir -p "${fullPath}"`);
+            await (Shell as any).exec(`mkdir -p "${fullPath}"`);
             
             showSuccess(`目录创建成功: ${dirName}`);
             await this.loadDirectory();
@@ -526,7 +456,7 @@ export default defineComponent({
             hideLoading();
           }
         },
-        (value) => {
+        (value: string) => {
           if (!value.trim()) return '请输入目录名';
           if (value.includes('/')) return '目录名不能包含斜杠';
           return undefined;
@@ -534,7 +464,7 @@ export default defineComponent({
       );
     },
     
-    // 删除文件/目录 - 修复版本
+    // 删除文件/目录
     async deleteItem(item: FileItem) {
       this.showConfirmModal = true;
       this.confirmTitle = '确认删除';
@@ -545,17 +475,8 @@ export default defineComponent({
           
           console.log('删除:', item.fullPath);
           
-          // 检查文件是否存在
-          const checkCmd = `if [ -e "${item.fullPath}" ]; then echo "exists"; else echo "not exists"; fi`;
-          const existsResult = await Shell.exec(checkCmd);
-          
-          if (existsResult.trim() === 'not exists') {
-            showError(`文件不存在: ${item.name}`);
-            return;
-          }
-          
           // 删除文件或目录
-          await Shell.exec(`rm -rf "${item.fullPath}"`);
+          await (Shell as any).exec(`rm -rf "${item.fullPath}"`);
           
           showSuccess(`删除成功: ${item.name}`);
           await this.loadDirectory();
@@ -570,11 +491,11 @@ export default defineComponent({
       };
     },
     
-    // 重命名文件/目录 - 修复版本
+    // 重命名文件/目录
     async renameItem(item: FileItem) {
       openSoftKeyboard(
         () => item.name,
-        async (newName) => {
+        async (newName: string) => {
           if (!newName.trim()) {
             showWarning('新名称不能为空');
             return;
@@ -598,26 +519,8 @@ export default defineComponent({
             
             console.log('重命名:', item.fullPath, '->', newPath);
             
-            // 检查源文件是否存在
-            const checkCmd = `if [ -e "${item.fullPath}" ]; then echo "exists"; else echo "not exists"; fi`;
-            const existsResult = await Shell.exec(checkCmd);
-            
-            if (existsResult.trim() === 'not exists') {
-              showError(`源文件不存在: ${item.name}`);
-              return;
-            }
-            
-            // 检查目标文件是否已存在
-            const checkTargetCmd = `if [ -e "${newPath}" ]; then echo "exists"; else echo "not exists"; fi`;
-            const targetExistsResult = await Shell.exec(checkTargetCmd);
-            
-            if (targetExistsResult.trim() === 'exists') {
-              showError(`目标文件已存在: ${newName}`);
-              return;
-            }
-            
             // 执行重命名
-            await Shell.exec(`mv "${item.fullPath}" "${newPath}"`);
+            await (Shell as any).exec(`mv "${item.fullPath}" "${newPath}"`);
             
             showSuccess(`重命名成功: ${item.name} -> ${newName}`);
             await this.loadDirectory();
@@ -629,80 +532,13 @@ export default defineComponent({
             hideLoading();
           }
         },
-        (value) => {
+        (value: string) => {
           if (!value.trim()) return '请输入新名称';
           if (value.includes('/')) return '名称不能包含斜杠';
           if (value === item.name) return '新名称不能与原名相同';
           return undefined;
         }
       );
-    },
-    
-    // 复制文件路径
-    copyFilePath(item: FileItem) {
-      console.log('复制文件路径:', item.fullPath);
-      showInfo(`文件路径: ${item.fullPath}`);
-    },
-    
-    // 显示上下文菜单
-    showContextMenu(event: any, item: FileItem) {
-      this.selectedFile = item;
-      this.contextMenuX = event.x || 100;
-      this.contextMenuY = event.y || 100;
-      this.showContextMenu = true;
-      
-      // 点击其他地方关闭菜单
-      setTimeout(() => {
-        const handler = () => {
-          this.showContextMenu = false;
-        };
-        // 在小程序环境中，可能需要特殊处理
-        // 这里简化处理，1秒后自动关闭
-        setTimeout(handler, 1000);
-      }, 100);
-    },
-    
-    // 执行上下文菜单操作
-    async executeContextMenu(action: string) {
-      if (!this.selectedFile) return;
-      
-      this.showContextMenu = false;
-      
-      switch (action) {
-        case 'open':
-          await this.openItem(this.selectedFile);
-          break;
-        case 'rename':
-          await this.renameItem(this.selectedFile);
-          break;
-        case 'delete':
-          await this.deleteItem(this.selectedFile);
-          break;
-        case 'copy_path':
-          this.copyFilePath(this.selectedFile);
-          break;
-        case 'properties':
-          this.showFileProperties(this.selectedFile);
-          break;
-      }
-      
-      this.selectedFile = null;
-    },
-    
-    // 显示文件属性
-    showFileProperties(item: FileItem) {
-      const properties = `
-文件名称: ${item.name}
-文件类型: ${item.type === 'directory' ? '目录' : '文件'}
-文件大小: ${item.sizeFormatted}
-修改时间: ${item.modifiedTimeFormatted}
-权限设置: ${item.permissions}
-完整路径: ${item.fullPath}
-隐藏文件: ${item.isHidden ? '是' : '否'}
-可执行文件: ${item.isExecutable ? '是' : '否'}
-      `.trim();
-      
-      showInfo(properties);
     },
     
     // 切换显示隐藏文件
@@ -716,7 +552,7 @@ export default defineComponent({
     searchFiles() {
       openSoftKeyboard(
         () => this.searchKeyword,
-        (value) => {
+        (value: string) => {
           this.searchKeyword = value;
           console.log('搜索关键词:', value);
           this.$forceUpdate();
@@ -763,7 +599,7 @@ export default defineComponent({
     },
     
     // 处理文件保存事件
-    handleFileSaved(e: { data: string }) {
+    handleFileSaved(e: any) {
       console.log('收到文件保存事件:', e.data);
       // 刷新当前目录
       this.loadDirectory();
@@ -784,7 +620,7 @@ export default defineComponent({
       }
       
       console.log('返回键：退出文件管理器');
-      this.$page.finish();
+      (this as any).$page.finish();
     },
     
     // 确认对话框相关
@@ -801,45 +637,20 @@ export default defineComponent({
       this.confirmCallback = null;
     },
     
-    // 调试函数：测试基本功能
+    // 测试基本功能
     async testBasicFunctions() {
       try {
         showLoading();
         
-        console.log('=== 测试开始 ===');
-        console.log('当前路径:', this.currentPath);
-        
-        // 测试1: pwd命令
-        const pwdResult = await Shell.exec('pwd');
-        console.log('当前工作目录:', pwdResult.trim());
-        
-        // 测试2: 创建测试文件
-        const testFile = `${this.currentPath === '/' ? '' : this.currentPath}/test_file_${Date.now()}.txt`;
-        await Shell.exec(`touch "${testFile}"`);
+        // 测试创建文件
+        const testFile = `${this.currentPath === '/' ? '' : this.currentPath}/test_${Date.now()}.txt`;
+        await (Shell as any).exec(`touch "${testFile}"`);
         console.log('创建测试文件:', testFile);
         
-        // 测试3: 重命名测试文件
-        const newTestFile = `${this.currentPath === '/' ? '' : this.currentPath}/test_file_renamed_${Date.now()}.txt`;
-        await Shell.exec(`mv "${testFile}" "${newTestFile}"`);
-        console.log('重命名测试文件:', newTestFile);
-        
-        // 测试4: 删除测试文件
-        await Shell.exec(`rm "${newTestFile}"`);
-        console.log('删除测试文件');
-        
-        // 测试5: 创建和删除目录
-        const testDir = `${this.currentPath === '/' ? '' : this.currentPath}/test_dir_${Date.now()}`;
-        await Shell.exec(`mkdir "${testDir}"`);
-        console.log('创建测试目录:', testDir);
-        await Shell.exec(`rmdir "${testDir}"`);
-        console.log('删除测试目录');
-        
-        console.log('=== 测试完成 ===');
-        
-        showSuccess('基础功能测试完成');
-        
-        // 刷新当前目录
+        // 刷新目录
         await this.loadDirectory();
+        
+        showSuccess('基本功能测试完成');
         
       } catch (error: any) {
         console.error('测试失败:', error);
