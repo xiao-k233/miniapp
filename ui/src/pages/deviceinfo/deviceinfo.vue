@@ -1,7 +1,6 @@
 <template>
   <div class="container">
     <!-- 标题栏 -->
-    <div class="header">
       <text class="title">设备信息</text>
       <div 
         class="refresh-btn" 
