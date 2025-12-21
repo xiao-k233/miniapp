@@ -79,6 +79,7 @@ export default defineComponent({
     // 获取初始路径
     const options = this.$page.loadOptions;
     this.currentPath = options.path || '/';
+    console.log('初始路径:', this.currentPath);
     
     // 设置页面返回键处理
     this.$page.$npage.setSupportBack(true);
@@ -127,8 +128,9 @@ export default defineComponent({
     parentPath(): string {
       if (this.currentPath === '/') return '/';
       const parts = this.currentPath.split('/').filter(part => part);
+      if (parts.length === 0) return '/';
       parts.pop();
-      return parts.length ? '/' + parts.join('/') : '/';
+      return parts.length > 0 ? '/' + parts.join('/') : '/';
     },
   },
 
@@ -146,6 +148,7 @@ export default defineComponent({
         
         await Shell.initialize();
         this.shellInitialized = true;
+        console.log('Shell模块初始化成功');
         
         // 加载当前目录
         await this.loadDirectory();
@@ -157,7 +160,7 @@ export default defineComponent({
       }
     },
     
-    // 加载目录
+    // 加载目录 - 改进版本
     async loadDirectory() {
       if (!this.shellInitialized || !Shell) {
         showError('Shell模块未初始化');
@@ -179,24 +182,46 @@ export default defineComponent({
           path = path.slice(0, -1);
         }
         this.currentPath = path;
+        console.log('标准化路径:', path);
         
-        // 检查目录是否存在
-        const checkCmd = `test -d "${path}" && echo "exists" || echo "not exists"`;
-        const existsResult = await Shell.exec(checkCmd);
+        // 方法1: 使用更简单的ls命令来获取文件和目录列表
+        const listCmd = `cd "${path}" && ls -la --time-style=+%s 2>/dev/null || ls -la 2>/dev/null`;
+        console.log('执行命令:', listCmd);
         
-        if (existsResult.trim() === 'not exists') {
-          showError(`目录不存在: ${path}`);
-          this.currentPath = '/';
-          await this.loadDirectory();
+        let result = '';
+        try {
+          result = await Shell.exec(listCmd);
+          console.log('ls命令原始输出:', result);
+        } catch (error: any) {
+          console.error('ls命令执行失败:', error);
+          // 尝试另一种方法
+          result = await Shell.exec(`cd "${path}" && ls -la`);
+        }
+        
+        if (!result || result.trim() === '') {
+          console.warn('目录为空或命令无输出');
+          this.fileList = [];
           return;
         }
         
-        // 列出文件和目录
-        const listCmd = `cd "${path}" && ls -la --time-style=+%s | tail -n +2`;
-        const result = await Shell.exec(listCmd);
-        
         // 解析结果
-        this.parseFileList(result);
+        const lines = result.trim().split('\n');
+        console.log('解析行数:', lines.length);
+        
+        // 跳过第一行（总计数行）
+        const fileLines = lines.slice(1);
+        const files: FileItem[] = [];
+        
+        for (const line of fileLines) {
+          const file = this.parseFileLineSimple(line);
+          if (file) {
+            files.push(file);
+            console.log('解析文件:', file.name, '类型:', file.type, '完整路径:', file.fullPath);
+          }
+        }
+        
+        this.fileList = files;
+        console.log('最终文件列表:', this.fileList.length, '个项目');
         
         // 更新统计信息
         this.updateStats();
@@ -205,60 +230,54 @@ export default defineComponent({
         console.error('加载目录失败:', error);
         showError(`加载目录失败: ${error.message}`);
         this.fileList = [];
+        
+        // 尝试回退到根目录
+        if (this.currentPath !== '/') {
+          this.currentPath = '/';
+          await this.loadDirectory();
+        }
       } finally {
         this.isLoading = false;
         hideLoading();
       }
     },
     
-    // 解析文件列表
-    parseFileList(lsOutput: string) {
-      const files: FileItem[] = [];
-      const lines = lsOutput.trim().split('\n');
+    // 简化的文件行解析方法
+    parseFileLineSimple(line: string): FileItem | null {
+      if (!line.trim()) return null;
       
-      for (const line of lines) {
-        const file = this.parseFileLine(line);
-        if (file) {
-          files.push(file);
-        }
+      // 跳过.和..
+      if (line.includes(' . ') || line.includes(' .. ')) {
+        return null;
       }
       
-      this.fileList = files;
-    },
-    
-    // 解析单行文件信息
-    parseFileLine(line: string): FileItem | null {
-      // ls -la 输出格式示例:
-      // drwxr-xr-x 2 user group 4096 1700000000 .
-      // -rw-r--r-- 1 user group 1024 1700000000 file.txt
-      const parts = line.trim().split(/\s+/);
+      // 尝试解析ls输出格式
+      // 格式示例: 
+      // drwxr-xr-x  2 root root 4096 1700000000 directory_name
+      // -rw-r--r--  1 root root  123 1700000000 file.txt
       
-      if (parts.length < 8) return null;
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 6) return null;
       
       const permissions = parts[0];
-      // const links = parts[1];
-      // const owner = parts[2];
-      // const group = parts[3];
-      const size = parseInt(parts[4], 10);
-      const timestamp = parseInt(parts[5], 10);
-      const name = parts.slice(6).join(' ');
+      const name = parts[parts.length - 1]; // 最后一个部分应该是文件名
       
-      // 跳过 . 和 ..
+      // 跳过.和..文件
       if (name === '.' || name === '..') return null;
       
       // 判断文件类型
-      const typeChar = permissions[0];
+      const typeChar = permissions.charAt(0);
       let type: 'file' | 'directory' | 'link' | 'unknown' = 'unknown';
       let icon = '?';
       
       if (typeChar === '-') {
         type = 'file';
         // 根据文件扩展名设置图标
-        if (name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm)$/i)) {
+        if (name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
           icon = '文';
         } else if (name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
           icon = '图';
-        } else if (name.match(/\.(amr|apk|bin|so)$/i)) {
+        } else if (name.match(/\.(amr|apk|bin|so|exe)$/i)) {
           icon = '执';
         } else {
           icon = '文';
@@ -271,18 +290,31 @@ export default defineComponent({
         icon = '🔗';
       }
       
-      // 格式化大小
+      // 尝试获取大小
+      let size = 0;
       let sizeFormatted = '';
+      
       if (type === 'directory') {
         sizeFormatted = '<DIR>';
-      } else if (size < 1024) {
-        sizeFormatted = `${size} B`;
-      } else if (size < 1024 * 1024) {
-        sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
-      } else if (size < 1024 * 1024 * 1024) {
-        sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
       } else {
-        sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        // 尝试从行中查找大小字段（通常是第4或第5个字段）
+        for (let i = 1; i < parts.length - 1; i++) {
+          const num = parseInt(parts[i], 10);
+          if (!isNaN(num) && num > 0 && num < 1000000000) { // 合理的文件大小范围
+            size = num;
+            break;
+          }
+        }
+        
+        if (size < 1024) {
+          sizeFormatted = `${size} B`;
+        } else if (size < 1024 * 1024) {
+          sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
+        } else if (size < 1024 * 1024 * 1024) {
+          sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+          sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        }
       }
       
       // 判断是否为隐藏文件
@@ -292,23 +324,117 @@ export default defineComponent({
       const isExecutable = permissions.includes('x');
       
       // 获取完整路径
-      const fullPath = this.currentPath === '/' 
-        ? `/${name}` 
-        : `${this.currentPath}/${name}`;
+      let fullPath = '';
+      if (this.currentPath === '/') {
+        fullPath = `/${name}`;
+      } else {
+        fullPath = `${this.currentPath}/${name}`;
+      }
+      
+      // 获取修改时间（简化处理）
+      const modifiedTime = Math.floor(Date.now() / 1000);
       
       return {
         name,
         type,
         size,
         sizeFormatted,
-        modifiedTime: timestamp,
-        modifiedTimeFormatted: formatTime(timestamp),
+        modifiedTime,
+        modifiedTimeFormatted: formatTime(modifiedTime),
         permissions,
         isHidden,
         fullPath,
         icon,
         isExecutable,
       };
+    },
+    
+    // 备用方法：使用find命令获取文件列表
+    async loadDirectoryWithFind() {
+      try {
+        showLoading();
+        
+        // 使用find命令获取文件和目录列表
+        const findCmd = `cd "${this.currentPath}" && find . -maxdepth 1 -type f -o -type d | sort`;
+        const result = await Shell.exec(findCmd);
+        
+        const lines = result.trim().split('\n').filter(line => line && line !== '.');
+        const files: FileItem[] = [];
+        
+        for (const line of lines) {
+          const name = line.replace('./', '');
+          if (name === '' || name === '.') continue;
+          
+          // 使用stat命令获取文件信息
+          const statCmd = `stat -c "%n,%s,%Y,%F" "${this.currentPath}/${name}" 2>/dev/null || echo "${name},0,0,unknown"`;
+          const statResult = await Shell.exec(statCmd);
+          const statParts = statResult.trim().split(',');
+          
+          if (statParts.length >= 4) {
+            const [fileName, sizeStr, timeStr, typeStr] = statParts;
+            const size = parseInt(sizeStr, 10) || 0;
+            const modifiedTime = parseInt(timeStr, 10) || Math.floor(Date.now() / 1000);
+            const isDirectory = typeStr.includes('directory');
+            
+            let type: 'file' | 'directory' | 'link' | 'unknown' = 'unknown';
+            let icon = '?';
+            
+            if (isDirectory) {
+              type = 'directory';
+              icon = '📁';
+            } else {
+              type = 'file';
+              if (name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
+                icon = '文';
+              } else if (name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
+                icon = '图';
+              } else if (name.match(/\.(amr|apk|bin|so|exe)$/i)) {
+                icon = '执';
+              } else {
+                icon = '文';
+              }
+            }
+            
+            // 格式化大小
+            let sizeFormatted = '';
+            if (type === 'directory') {
+              sizeFormatted = '<DIR>';
+            } else if (size < 1024) {
+              sizeFormatted = `${size} B`;
+            } else if (size < 1024 * 1024) {
+              sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
+            } else if (size < 1024 * 1024 * 1024) {
+              sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+            } else {
+              sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+            }
+            
+            files.push({
+              name: fileName,
+              type,
+              size,
+              sizeFormatted,
+              modifiedTime,
+              modifiedTimeFormatted: formatTime(modifiedTime),
+              permissions: '-rw-r--r--',
+              isHidden: fileName.startsWith('.'),
+              fullPath: this.currentPath === '/' ? `/${fileName}` : `${this.currentPath}/${fileName}`,
+              icon,
+              isExecutable: false,
+            });
+          }
+        }
+        
+        this.fileList = files;
+        this.updateStats();
+        
+      } catch (error: any) {
+        console.error('使用find命令加载目录失败:', error);
+        showError(`加载目录失败: ${error.message}`);
+        this.fileList = [];
+      } finally {
+        hideLoading();
+      }
     },
     
     // 更新统计信息
@@ -320,14 +446,17 @@ export default defineComponent({
         .filter(file => file.type === 'file')
         .reduce((sum, file) => sum + file.size, 0);
       
-      this.selectedCount = 0; // 重置选择计数
+      this.selectedCount = 0;
     },
     
-    // 打开文件或目录
+    // 打开文件或目录 - 修复版本
     async openItem(item: FileItem) {
+      console.log('打开项目:', item.name, '类型:', item.type, '路径:', item.fullPath);
+      
       if (item.type === 'directory') {
         // 进入目录
         this.currentPath = item.fullPath;
+        console.log('切换到目录:', this.currentPath);
         await this.loadDirectory();
       } else {
         // 打开文件
@@ -339,7 +468,7 @@ export default defineComponent({
     async openFile(file: FileItem) {
       console.log('打开文件:', file.fullPath);
       
-      // 检查文件是否存在且可读
+      // 检查文件是否存在
       try {
         const checkCmd = `test -f "${file.fullPath}" && echo "exists" || echo "not exists"`;
         const existsResult = await Shell.exec(checkCmd);
@@ -360,8 +489,7 @@ export default defineComponent({
             returnPath: this.currentPath,
           });
         } else {
-          // 尝试用系统默认方式打开
-          showInfo(`打开文件: ${file.name} (暂不支持此文件类型)`);
+          showInfo(`打开文件: ${file.name} (暂不支持此文件类型的预览)`);
         }
         
       } catch (error: any) {
@@ -370,16 +498,25 @@ export default defineComponent({
       }
     },
     
-    // 返回上一级
+    // 返回上一级 - 修复版本
     async goBack() {
-      if (!this.canGoBack) return;
+      console.log('返回上一级，当前路径:', this.currentPath, '父路径:', this.parentPath);
       
+      if (!this.canGoBack) {
+        console.log('已经在根目录');
+        return;
+      }
+      
+      const oldPath = this.currentPath;
       this.currentPath = this.parentPath;
+      console.log('从', oldPath, '切换到', this.currentPath);
+      
       await this.loadDirectory();
     },
     
     // 刷新目录
     async refreshDirectory() {
+      console.log('刷新目录:', this.currentPath);
       await this.loadDirectory();
       showSuccess('目录已刷新');
     },
@@ -400,6 +537,8 @@ export default defineComponent({
             const fullPath = this.currentPath === '/' 
               ? `/${fileName}`
               : `${this.currentPath}/${fileName}`;
+            
+            console.log('创建文件:', fullPath);
             
             // 创建空文件
             await Shell.exec(`touch "${fullPath}"`);
@@ -439,6 +578,8 @@ export default defineComponent({
               ? `/${dirName}`
               : `${this.currentPath}/${dirName}`;
             
+            console.log('创建目录:', fullPath);
+            
             // 创建目录
             await Shell.exec(`mkdir -p "${fullPath}"`);
             
@@ -468,6 +609,8 @@ export default defineComponent({
       this.confirmCallback = async () => {
         try {
           showLoading();
+          
+          console.log('删除:', item.fullPath);
           
           // 使用 rm -rf 删除文件和目录
           await Shell.exec(`rm -rf "${item.fullPath}"`);
@@ -504,6 +647,8 @@ export default defineComponent({
               ? `/${newName}`
               : `${this.currentPath}/${newName}`;
             
+            console.log('重命名:', item.fullPath, '->', newPath);
+            
             // 重命名
             await Shell.exec(`mv "${item.fullPath}" "${newPath}"`);
             
@@ -528,9 +673,8 @@ export default defineComponent({
     
     // 复制文件路径
     copyFilePath(item: FileItem) {
-      // 这里可以集成到剪贴板功能
-      showInfo(`文件路径已复制: ${item.fullPath}`);
-      // 在实际应用中，可以将路径保存到全局变量或使用系统剪贴板
+      console.log('复制文件路径:', item.fullPath);
+      showInfo(`文件路径: ${item.fullPath}`);
     },
     
     // 显示上下文菜单
@@ -596,6 +740,7 @@ export default defineComponent({
     // 切换显示隐藏文件
     toggleHiddenFiles() {
       this.showHiddenFiles = !this.showHiddenFiles;
+      console.log('切换显示隐藏文件:', this.showHiddenFiles);
       this.$forceUpdate();
     },
     
@@ -605,6 +750,7 @@ export default defineComponent({
         () => this.searchKeyword,
         (value) => {
           this.searchKeyword = value;
+          console.log('搜索关键词:', value);
           this.$forceUpdate();
         }
       );
@@ -664,10 +810,12 @@ export default defineComponent({
       }
       
       if (this.canGoBack) {
+        console.log('返回键：返回上一级目录');
         this.goBack();
         return;
       }
       
+      console.log('返回键：退出文件管理器');
       this.$page.finish();
     },
     
@@ -683,6 +831,24 @@ export default defineComponent({
     cancelConfirmAction() {
       this.showConfirmModal = false;
       this.confirmCallback = null;
+    },
+    
+    // 测试目录功能
+    async testDirectoryFunctions() {
+      console.log('测试目录功能...');
+      console.log('当前路径:', this.currentPath);
+      console.log('可以返回:', this.canGoBack);
+      console.log('父路径:', this.parentPath);
+      console.log('文件列表长度:', this.fileList.length);
+      
+      // 测试命令执行
+      try {
+        const testCmd = `cd "${this.currentPath}" && pwd && ls -la`;
+        const result = await Shell.exec(testCmd);
+        console.log('测试命令输出:', result);
+      } catch (error) {
+        console.error('测试命令失败:', error);
+      }
     },
   },
 });
