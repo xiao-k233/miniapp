@@ -1,43 +1,75 @@
 #pragma once
 
-#include "Shell.hpp"
-#include <jqutil_v2/jqutil.h>
+#include <string>
+#include <functional>
 #include <memory>
-#include <mutex>
-#include <unordered_map>
+#include <vector>
+#include <thread>
 #include <atomic>
+#include <mutex>
 
-using namespace JQUTIL_NS;
-
-class JSShell : public JQPublishObject
-{
-private:
-    std::unique_ptr<Shell> shell;
-    std::mutex mutex;
-    std::unordered_map<int, std::unique_ptr<Shell::InteractiveSession>> sessions;
-    std::atomic<int> nextSessionId{0};
-    
-    int createSession();
-    Shell::InteractiveSession* getSession(int sessionId);
-    void removeSession(int sessionId);
-
+class Shell {
 public:
-    JSShell();
-    ~JSShell();
+    // 原有简单执行接口（保持兼容）
+    static std::string exec(const std::string& cmd);
+    static std::string exec(const std::string& cmd, const std::string& env);
+    static std::pair<std::string, int> execWithStatus(const std::string& cmd);
+    static void execAsync(const std::string& cmd, std::function<void(const std::string&)> onOutput);
 
-    void initialize(JQFunctionInfo& info);
-    void exec(JQAsyncInfo& info);
+    // 新增：交互式终端接口
+    struct PTYConfig {
+        int rows = 24;      // 终端行数
+        int cols = 80;      // 终端列数
+        bool echo = false;  // 是否回显
+        bool canonical = true; // 是否规范模式
+        std::string termType = "xterm"; // 终端类型 - 简化默认值
+    };
+
+    // 交互式命令执行（阻塞式）
+    static std::string execInteractive(const std::string& cmd, 
+                                       const PTYConfig& config = PTYConfig());
     
-    // 新增交互式接口
-    void createInteractiveSession(JQFunctionInfo& info);
-    void startInteractive(JQAsyncInfo& info);
-    void writeToSession(JQFunctionInfo& info);
-    void readFromSession(JQFunctionInfo& info);
-    void resizeSession(JQFunctionInfo& info);
-    void sendSignalToSession(JQFunctionInfo& info);
-    void terminateSession(JQFunctionInfo& info);
-    void isSessionRunning(JQFunctionInfo& info);
-    void getSessionPid(JQFunctionInfo& info);
+    // 交互式命令执行（异步，带回调）
+    class InteractiveSession {
+    public:
+        InteractiveSession();
+        ~InteractiveSession();
+        
+        // 启动交互式会话
+        bool start(const std::string& cmd, const PTYConfig& config = PTYConfig());
+        
+        // 向进程发送输入
+        bool write(const std::string& data);
+        
+        // 读取进程输出
+        std::string read();
+        
+        // 发送信号
+        bool sendSignal(int sig);
+        
+        // 调整终端大小
+        bool resize(int rows, int cols);
+        
+        // 等待进程结束
+        int wait();
+        
+        // 检查是否运行中
+        bool isRunning() const;
+        
+        // 结束会话
+        void terminate();
+        
+        // 设置输出回调（异步模式）
+        void setOutputCallback(std::function<void(const std::string&)> callback);
+        
+        // 获取进程ID
+        pid_t getPid() const;
+        
+    private:
+        struct Impl;
+        std::unique_ptr<Impl> impl;
+    };
+    
+    // 创建交互式会话
+    static std::unique_ptr<InteractiveSession> createInteractiveSession();
 };
-
-JSValue createShell(JQModuleEnv* env);
