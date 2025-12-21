@@ -43,6 +43,11 @@
             {{ showHiddenFiles ? '隐藏' : '显示' }}隐藏文件
           </text>
         </div>
+        
+        <!-- 调试按钮 -->
+        <div class="item" style="margin-top: 10px;">
+          <text @click="testBasicFunctions" class="btn btn-info">测试基本功能</text>
+        </div>
       </div>
       
       <!-- 操作按钮 -->
@@ -58,7 +63,7 @@
       
       <!-- 文件列表 -->
       <div class="section">
-        <text class="section-title">文件列表</text>
+        <text class="section-title">文件列表 ({{ filteredFiles.length }})</text>
         
         <div v-if="filteredFiles.length === 0" class="file-empty">
           <text class="empty-title">目录为空</text>
@@ -68,8 +73,7 @@
         
         <div v-for="file in filteredFiles" :key="file.fullPath" 
              class="file-item" 
-             @click="openItem(file)"
-             @contextmenu="showContextMenu($event, file)">
+             @click="openItem(file)">
           
           <text :class="getFileIconClass(file)">{{ file.icon }}</text>
           <text class="file-name">{{ file.name }}</text>
