@@ -9,8 +9,37 @@
   flex-direction: column;
 }
 
+/* 设备信息显示区域 */
+.info-content {
+  flex: 1;
+  width: 100%;
+  background-color: #000000;
+}
+
+.info-scroller {
+  width: 100%;
+  height: 100%;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-top: 20px;
+}
+
+/* 标题区域 - 现在是滚动内容的一部分 */
+.header-section {
+  width: 100%;
+  margin-bottom: 25px;
+}
+
+.title-row {
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
   color: #ffffff;
 }
@@ -39,30 +68,6 @@
 
 .refresh-text {
   display: none;
-}
-
-/* 设备信息显示区域 */
-.info-content {
-  flex: 1;
-  width: 100%;
-  background-color: #000000;
-  padding-left: 20px;
-  padding-right: 20px;
-  padding-top: 10px;
-}
-
-.info-scroller {
-  width: 100%;
-  height: 100%;
-}
-
-/* 仅错误信息保留标题 */
-.section-title {
-  font-size: 14px;
-  font-weight: bold;
-  color: #ff5555;
-  margin-bottom: 8px;
-  margin-top: 15px;
 }
 
 .info-item {

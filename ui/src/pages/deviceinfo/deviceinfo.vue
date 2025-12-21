@@ -1,15 +1,5 @@
 <template>
   <div class="container">
-    <!-- 标题栏 -->
-      <text class="title">设备信息</text>
-      <div 
-        class="refresh-btn" 
-        @click="refreshInfo"
-      >
-        <text class="refresh-icon">{{ isRefreshing ? '⟳' : '↻' }}</text>
-      </div>
-    </div>
-
     <!-- 设备信息显示区域 -->
     <div class="info-content">
       <scroller 
@@ -17,6 +7,19 @@
         scroll-direction="vertical"
         :show-scrollbar="true"
       >
+        <!-- 标题区域 - 现在是滚动内容的一部分 -->
+        <div class="header-section">
+          <div class="title-row">
+            <text class="title">设备信息</text>
+            <div 
+              class="refresh-btn" 
+              @click="refreshInfo"
+            >
+              <text class="refresh-icon">{{ isRefreshing ? '⟳' : '↻' }}</text>
+            </div>
+          </div>
+        </div>
+        
         <!-- 加载状态 -->
         <div v-if="isLoading" class="loading-container">
           <text class="loading-text">正在加载设备信息...</text>
@@ -24,8 +27,8 @@
         
         <!-- 错误信息 -->
         <div v-else-if="deviceInfo.error">
-          <text class="section-title">错误信息</text>
           <div class="info-item">
+            <text class="item-label">错误信息</text>
             <text class="item-value error-value">{{ deviceInfo.error }}</text>
           </div>
         </div>
