@@ -43,7 +43,6 @@ const fileEditor = defineComponent({
       
       // 编辑状态
       cursorPosition: { row: 0, col: 0 },
-      scrollTop: 0,
       totalLines: 1,
       totalChars: 0,
       
@@ -66,10 +65,6 @@ const fileEditor = defineComponent({
       // 返回信息
       returnTo: '',
       returnPath: '/',
-      
-      // 滚动相关
-      textAreaScrollTop: 0,
-      textAreaScrollLeft: 0,
     };
   },
 
@@ -98,10 +93,13 @@ const fileEditor = defineComponent({
     this.$page.$npage.setSupportBack(true);
     this.$page.$npage.on("backpressed", this.handleBackPress);
     
-    // 监听内容变化
-    setTimeout(() => {
+    // 监听内容变化 - 立即更新一次
+    this.updateStats();
+    
+    // 在下一帧确保DOM已渲染
+    this.$nextTick(() => {
       this.updateStats();
-    }, 100);
+    });
   },
 
   beforeDestroy() {
@@ -301,15 +299,14 @@ const fileEditor = defineComponent({
         .replace(/\t/g, '\\t');
     },
     
-    // 内容变化处理 - 修复版本
+    // 内容变化处理
     onContentChange(event: any) {
-      const content = event.value || this.fileContent;
-      this.fileContent = content;
-      this.isModified = content !== this.originalContent;
+      // 由于使用v-model，fileContent已经自动更新了
+      this.isModified = this.fileContent !== this.originalContent;
       this.updateStats();
     },
     
-    // 更新统计信息 - 修复版本
+    // 更新统计信息
     updateStats() {
       if (!this.fileContent) {
         this.totalLines = 1;
@@ -321,22 +318,12 @@ const fileEditor = defineComponent({
       this.totalLines = lines.length;
       this.totalChars = this.fileContent.length;
       
-      // 更新光标位置
-      const textarea = this.$refs.textarea as any;
-      if (textarea) {
-        // 尝试获取光标位置
-        try {
-          // 在小程序环境中，我们需要自己计算光标位置
-          // 这里简化处理，更新时重置光标位置到起始位置
-          setTimeout(() => {
-            this.cursorPosition = { row: 0, col: 0 };
-            this.$forceUpdate();
-          }, 0);
-        } catch (error) {
-          console.warn('无法获取光标位置:', error);
-          this.cursorPosition = { row: 0, col: 0 };
-        }
-      }
+      // 简化光标位置计算，在小程序中无法准确获取
+      // 这里设置为0，如果需要更精确，可以考虑使用其他方法
+      this.cursorPosition = { row: 0, col: 0 };
+      
+      // 强制更新视图
+      this.$forceUpdate();
     },
     
     // 显示另存为对话框
@@ -399,9 +386,6 @@ const fileEditor = defineComponent({
     // 高亮查找结果
     highlightFindResult(result: { row: number; col: number }) {
       showSuccess(`找到匹配项: 第 ${result.row + 1} 行, 第 ${result.col + 1} 列`);
-      
-      // 尝试滚动到该位置
-      this.textAreaScrollTop = result.row * 18; // 假设每行高度为18px
     },
     
     // 查找下一个
@@ -446,14 +430,12 @@ const fileEditor = defineComponent({
       if (lineNumber < 1) lineNumber = 1;
       if (lineNumber > this.totalLines) lineNumber = this.totalLines;
       
-      // 滚动到指定行
-      this.textAreaScrollTop = (lineNumber - 1) * 18;
       this.showGoToModal = false;
       
       showSuccess(`已跳转到第 ${lineNumber} 行`);
     },
     
-    // 打开软键盘编辑 - 修复版本
+    // 打开软键盘编辑
     openKeyboard() {
       openSoftKeyboard(
         () => this.fileContent,
@@ -571,14 +553,6 @@ const fileEditor = defineComponent({
       }
       
       return `${lines} 行, ${sizeText}`;
-    },
-    
-    // 处理textarea滚动
-    handleTextAreaScroll(event: any) {
-      if (event && event.target) {
-        this.textAreaScrollTop = event.target.scrollTop || 0;
-        this.textAreaScrollLeft = event.target.scrollLeft || 0;
-      }
     }
   }
 });
