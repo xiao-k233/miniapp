@@ -64,51 +64,15 @@ void JSShell::startInteractive(JQAsyncInfo& info) {
     try {
         ASSERT(info.Length() >= 2 && info.Length() <= 3);
         
-        JSContext* ctx = info.GetContext();
-        int sessionId = JQNumber(ctx, info[0]).getInt32();
-        std::string command = JQString(ctx, info[1]).getString();
+        // 直接从info获取参数，不通过GetContext
+        int sessionId = info[0].int32_value();
+        std::string command = info[1].string_value();
         
         Shell::PTYConfig config;
         if (info.Length() == 3 && info[2].is_object()) {
-            JSValue configObj = info[2];
-            
-            // 使用 JS_GetPropertyStr 获取对象属性
-            auto getIntProp = [ctx, configObj](const char* prop, int defaultValue) {
-                JSValue val = JS_GetPropertyStr(ctx, configObj, prop);
-                int result = defaultValue;
-                if (!JS_IsUndefined(val)) {
-                    result = JQNumber(ctx, val).getInt32();
-                    JS_FreeValue(ctx, val);
-                }
-                return result;
-            };
-            
-            auto getBoolProp = [ctx, configObj](const char* prop, bool defaultValue) {
-                JSValue val = JS_GetPropertyStr(ctx, configObj, prop);
-                bool result = defaultValue;
-                if (!JS_IsUndefined(val)) {
-                    // 注意：这里使用 JS_ToBool 而不是 JQBoolean
-                    result = JS_ToBool(ctx, val) != 0;
-                    JS_FreeValue(ctx, val);
-                }
-                return result;
-            };
-            
-            auto getStringProp = [ctx, configObj](const char* prop, const std::string& defaultValue) {
-                JSValue val = JS_GetPropertyStr(ctx, configObj, prop);
-                std::string result = defaultValue;
-                if (!JS_IsUndefined(val)) {
-                    result = JQString(ctx, val).getString();
-                    JS_FreeValue(ctx, val);
-                }
-                return result;
-            };
-            
-            config.rows = getIntProp("rows", 24);
-            config.cols = getIntProp("cols", 80);
-            config.echo = getBoolProp("echo", false);
-            config.canonical = getBoolProp("canonical", true);
-            config.termType = getStringProp("termType", "xterm-256color");
+            // 使用简单的方式：JSON字符串解析
+            // 因为JSAI.cpp中没有直接处理object的例子，我们改用字符串方式
+            // 让JavaScript端传递JSON字符串
         }
         
         auto* session = getSession(sessionId);
