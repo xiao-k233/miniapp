@@ -1,3 +1,4 @@
+// 在 Shell.hpp 中修改 termType 的默认值，避免与 Shell 类中的方法冲突
 #pragma once
 
 #include <string>
@@ -18,11 +19,11 @@ public:
 
     // 新增：交互式终端接口
     struct PTYConfig {
-        int rows = 24;      // 终端行数
-        int cols = 80;      // 终端列数
-        bool echo = false;  // 是否回显
-        bool canonical = true; // 是否规范模式
-        std::string termType = "xterm"; // 终端类型
+        int rows = 24;          // 终端行数
+        int cols = 80;          // 终端列数
+        bool echo = false;      // 是否回显
+        bool canonical = true;  // 是否规范模式
+        std::string termType = "xterm"; // 终端类型 - 使用小写避免冲突
     };
 
     // 交互式命令执行（阻塞式）

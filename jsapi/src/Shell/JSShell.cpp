@@ -65,8 +65,8 @@ void JSShell::startInteractive(JQAsyncInfo& info) {
     try {
         ASSERT(info.Length() >= 2);
         
-        // 直接从info获取参数
-        int sessionId = info[0].int32_value();
+        // 修正：使用 int_value() 而不是 int32_value()
+        int sessionId = info[0].int_value();
         std::string command = info[1].string_value();
         
         Shell::PTYConfig config;
