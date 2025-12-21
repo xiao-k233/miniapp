@@ -1,17 +1,3 @@
-<!--
- Copyright (C) 2025 Langning Chen
- 
- This file is part of miniapp.
- 
- miniapp is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
--->
-
 <template>
   <div class="container">
     <!-- 标题栏 -->
@@ -54,7 +40,7 @@
           <div class="info-section">
             <text class="section-title">IP地址信息</text>
             <div class="info-item">
-              <text class="item-label">IP地址:</text>
+              <text class="item-label">IP地址</text>
               <text class="item-value">{{ formatIP(deviceInfo.ipAddress) }}</text>
             </div>
           </div>
@@ -63,7 +49,7 @@
           <div class="info-section">
             <text class="section-title">设备标识</text>
             <div class="info-item">
-              <text class="item-label">设备ID:</text>
+              <text class="item-label">设备ID</text>
               <text class="item-value">{{ deviceInfo.deviceId || '未知' }}</text>
             </div>
           </div>
@@ -72,15 +58,15 @@
           <div class="info-section">
             <text class="section-title">系统信息</text>
             <div class="info-item">
-              <text class="item-label">设备型号:</text>
+              <text class="item-label">设备型号</text>
               <text class="item-value">{{ deviceInfo.systemInfo && deviceInfo.systemInfo.model ? deviceInfo.systemInfo.model : '未知' }}</text>
             </div>
             <div class="info-item">
-              <text class="item-label">内核版本:</text>
+              <text class="item-label">内核版本</text>
               <text class="item-value">{{ deviceInfo.systemInfo && deviceInfo.systemInfo.kernel ? deviceInfo.systemInfo.kernel : '未知' }}</text>
             </div>
             <div class="info-item">
-              <text class="item-label">系统版本:</text>
+              <text class="item-label">系统版本</text>
               <text class="item-value">{{ deviceInfo.systemInfo && deviceInfo.systemInfo.version ? deviceInfo.systemInfo.version : '未知' }}</text>
             </div>
           </div>
@@ -89,15 +75,15 @@
           <div class="info-section">
             <text class="section-title">存储信息</text>
             <div class="info-item">
-              <text class="item-label">总空间:</text>
+              <text class="item-label">总空间</text>
               <text class="item-value">{{ deviceInfo.storageInfo && deviceInfo.storageInfo.total ? deviceInfo.storageInfo.total : '未知' }}</text>
             </div>
             <div class="info-item">
-              <text class="item-label">已使用:</text>
+              <text class="item-label">已使用</text>
               <text class="item-value">{{ deviceInfo.storageInfo && deviceInfo.storageInfo.used ? deviceInfo.storageInfo.used : '未知' }}</text>
             </div>
             <div class="info-item">
-              <text class="item-label">可用空间:</text>
+              <text class="item-label">可用空间</text>
               <text class="item-value">{{ deviceInfo.storageInfo && deviceInfo.storageInfo.free ? deviceInfo.storageInfo.free : '未知' }}</text>
             </div>
           </div>
@@ -114,7 +100,7 @@
           <div class="info-section">
             <text class="section-title">信息更新时间</text>
             <div class="info-item">
-              <text class="item-label">最后更新:</text>
+              <text class="item-label">最后更新</text>
               <text class="item-value">{{ deviceInfo.timestamp ? new Date(deviceInfo.timestamp).toLocaleString() : new Date().toLocaleString() }}</text>
             </div>
           </div>
