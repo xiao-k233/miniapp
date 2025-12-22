@@ -25,26 +25,8 @@ export function openSoftKeyboard(
     const currentValue = get();
     $falcon.navTo('softKeyboard', { data: currentValue });
 
-    const handler = (e: any) => {
-        // 安全地提取数据
-        let newValue: string;
-        
-        if (typeof e === 'string') {
-            newValue = e;
-        } else if (e && typeof e === 'object') {
-            // 处理多种可能的格式
-            if (typeof e.data === 'string') {
-                newValue = e.data;
-            } else if (e.data && e.data.toString) {
-                newValue = e.data.toString();
-            } else {
-                console.warn('Unexpected data format in softKeyboard event:', e);
-                newValue = '';
-            }
-        } else {
-            console.warn('Unexpected event format in softKeyboard:', e);
-            newValue = '';
-        }
+    const handler = (e: { data: string }) => {
+        const newValue = e.data;
 
         if (validate) {
             const validationError = validate(newValue);
@@ -59,5 +41,5 @@ export function openSoftKeyboard(
         $falcon.off('softKeyboard', handler);
     };
 
-    $falcon.on('softKeyboard', handler);
+    $falcon.on<string>('softKeyboard', handler);
 }
