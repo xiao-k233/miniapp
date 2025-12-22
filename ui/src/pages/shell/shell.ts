@@ -16,90 +16,56 @@
 // along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
 
 import { defineComponent } from 'vue';
-import { Shell } from 'langningchen';
-import { showError, showSuccess, showWarning } from '../../components/ToastMessage';
-import { hideLoading, showLoading } from '../../components/Loading';
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
+import { Shell } from 'langningchen';
 
-export type FileEditorOptions = {
-  filePath: string;
-  returnTo?: string;
-  returnPath?: string;
-};
+// 在顶部添加导入（如果不存在）
+import { showInfo } from '../../components/ToastMessage';
 
-const fileEditor = defineComponent({
+// Shell API 类型定义
+interface ShellAPI {
+  initialize(): Promise<void>;
+  exec(cmd: string): Promise<string>;
+}
+
+interface TerminalLine {
+  id: string;
+  type: 'command' | 'output' | 'error' | 'system';
+  content: string;
+  timestamp: number;
+}
+
+export default defineComponent({
   data() {
     return {
-      $page: {} as FalconPage<FileEditorOptions>,
+      $page: {} as FalconPage<Record<string, any>>,
       
-      // 文件信息
-      filePath: '',
-      fileName: '',
-      fileContent: '',
-      originalContent: '',
-      isModified: false,
-      fileExists: false,
-      isNewFile: false,
-      
-      // 编辑状态
-      cursorPosition: { row: 0, col: 0 },
-      totalLines: 1,
-      totalChars: 0,
-      
-      // 工具状态
-      showSaveAsModal: false,
-      showFindModal: false,
-      showGoToModal: false,
-      showConfirmModal: false,
-      confirmTitle: '',
-      confirmAction: '' as string,
-      
-      // 查找相关
-      findText: '',
-      findResults: [] as { row: number; col: number }[],
-      currentFindIndex: -1,
-      
-      // Shell状态
+      // 输入和状态
+      inputText: '',
+      isExecuting: false,
+      currentDir: '/',
       shellInitialized: false,
       
-      // 返回信息
-      returnTo: '',
-      returnPath: '/',
+      // 终端内容
+      terminalLines: [] as TerminalLine[],
+      
+      // 命令历史
+      commandHistory: [] as string[],
+      historyIndex: -1,
+      
+      // Shell模块引用
+      shellModule: null as ShellAPI | null,
     };
   },
 
-  async mounted() {
-    const options = this.$page.loadOptions;
-    this.filePath = options.filePath || '';
-    this.fileName = this.getFileName(this.filePath);
-    this.isNewFile = !this.filePath;
-    this.returnTo = options.returnTo || '';
-    this.returnPath = options.returnPath || '/';
-    
-    console.log('文件编辑器加载:', options);
-    
-    await this.initializeShell();
-    
-    if (!this.isNewFile && this.filePath) {
-      await this.loadFile();
-    } else if (this.isNewFile) {
-      this.fileContent = '';
-      this.originalContent = '';
-      this.fileExists = false;
-      this.isModified = false;
-    }
+  mounted() {
+    console.log('Shell页面开始加载...');
+    this.initializeShell();
+    this.addWelcomeMessage();
     
     // 设置页面返回键处理
     this.$page.$npage.setSupportBack(true);
     this.$page.$npage.on("backpressed", this.handleBackPress);
-    
-    // 监听内容变化 - 立即更新一次
-    this.updateStats();
-    
-    // 在下一帧确保DOM已渲染
-    this.$nextTick(() => {
-      this.updateStats();
-    });
   },
 
   beforeDestroy() {
@@ -107,458 +73,490 @@ const fileEditor = defineComponent({
   },
 
   computed: {
-    lineNumbers(): number[] {
-      return Array.from({ length: this.totalLines }, (_, i) => i + 1);
-    },
-    
-    canSave(): boolean {
-      return this.shellInitialized && (this.isNewFile || this.fileContent !== this.originalContent);
-    },
-    
-    // 添加显示文件名的计算属性
-    displayFileName(): string {
-      if (!this.filePath) return '新文件.txt';
-      const parts = this.filePath.split('/');
-      const fileName = parts[parts.length - 1] || '未命名文件';
-      return this.isModified ? `${fileName} *` : fileName;
+    canExecute(): boolean {
+      return this.inputText.trim().length > 0 && !this.isExecuting && this.shellInitialized;
     }
   },
 
   methods: {
-    // 初始化Shell
+    // 初始化Shell模块
     async initializeShell() {
       try {
+        this.addTerminalLine('system', '正在初始化Shell模块...');
+        
+        // 直接使用从langningchen导入的Shell
+        console.log('使用langningchen.Shell模块...');
+        
+        // 检查Shell对象是否存在
         if (!Shell) {
           throw new Error('Shell对象未定义');
         }
         
+        // 检查initialize方法是否存在
         if (typeof Shell.initialize !== 'function') {
           throw new Error('Shell.initialize方法不存在');
         }
         
+        // 初始化Shell
         await Shell.initialize();
+        
+        this.shellModule = Shell;
         this.shellInitialized = true;
+        this.addTerminalLine('system', 'Shell模块初始化成功');
+        
+        // 获取初始目录
+        try {
+          const result = await Shell.exec('pwd');
+          this.currentDir = result.trim();
+          this.addTerminalLine('system', `当前目录: ${this.currentDir}`);
+        } catch (error: any) {
+          this.addTerminalLine('system', `当前目录: / (默认)`);
+        }
+        
+        // 测试Shell功能
+        setTimeout(async () => {
+          try {
+            const result = await Shell.exec('echo "Shell终端已就绪"');
+            this.addTerminalLine('output', result.trim());
+          } catch (error: any) {
+            this.addTerminalLine('error', `Shell测试失败: ${error.message}`);
+          }
+        }, 500);
         
       } catch (error: any) {
         console.error('Shell模块初始化失败:', error);
-        showError(`Shell模块初始化失败: ${error.message}`);
+        this.addTerminalLine('error', `Shell模块初始化失败: ${error.message}`);
         this.shellInitialized = false;
       }
     },
     
-    // 获取文件名
-    getFileName(path: string): string {
-      if (!path) return '新文件.txt';
+    // 添加终端行
+    addTerminalLine(type: TerminalLine['type'], content: string) {
+      const timestamp = Date.now();
       
-      const parts = path.split('/');
-      return parts[parts.length - 1] || '未命名文件';
+      this.terminalLines.push({
+        id: `line_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
+        type,
+        content,
+        timestamp
+      });
+      
+      // 自动滚动
+      this.scrollToBottom();
     },
     
-    // 加载文件
-    async loadFile() {
-      if (!this.shellInitialized || !Shell || !this.filePath) {
-        showError('Shell模块未初始化或文件路径无效');
+    // 添加欢迎消息
+    addWelcomeMessage() {
+      this.addTerminalLine('system', '=== Shell终端 ===');
+      this.addTerminalLine('system', '基于langningchen.Shell模块');
+      this.addTerminalLine('system', '输入 "help" 查看帮助');
+      this.addTerminalLine('system', '提示: 使用 vi <文件名> 编辑文件');
+    },
+    
+    // 执行命令
+    async executeCommand() {
+      const command = this.inputText.trim();
+      if (!command || this.isExecuting) return;
+      
+      // 显示命令
+      this.addTerminalLine('command', `${this.currentDir} $ ${command}`);
+      
+      // 保存到历史记录
+      if (this.commandHistory[this.commandHistory.length - 1] !== command) {
+        this.commandHistory.push(command);
+      }
+      this.historyIndex = this.commandHistory.length;
+      this.inputText = '';
+      
+      // 检查Shell状态
+      if (!this.shellInitialized || !Shell) {
+        this.addTerminalLine('error', '错误: Shell模块未初始化');
         return;
       }
       
+      // 处理内置命令（包括vi）
+      if (await this.handleBuiltinCommand(command)) {
+        return;
+      }
+      
+      // 执行命令（包含目录切换处理）
+      await this.executeCommandWithDir(command);
+    },
+    
+    // 处理内置命令（前端模拟的）
+    async handleBuiltinCommand(command: string): Promise<boolean> {
+      const [cmd, ...args] = command.split(' ');
+      
+      // 将命令转换为小写进行比较
+      const lowerCmd = cmd.toLowerCase();
+      
+      switch (lowerCmd) {
+        case 'help':
+          this.showHelp();
+          return true;
+          
+        case 'clear':
+          this.clearTerminal();
+          return true;
+          
+        case 'history':
+          this.showHistory();
+          return true;
+          
+        case 'reset':
+          this.resetTerminal();
+          return true;
+          
+        case 'test':
+          await this.testShell();
+          return true;
+          
+        // 添加对vi命令的支持
+        case 'vi':
+        case 'vim':
+          await this.handleViCommand(args);
+          return true;
+          
+        case 'nano':
+        case 'ed':
+          // 也可以支持其他文本编辑器命令
+          this.addTerminalLine('system', `尝试使用 ${cmd} 编辑器`);
+          this.addTerminalLine('system', '正在打开文本编辑器...');
+          await this.handleViCommand(args);
+          return true;
+          
+        default:
+          return false;
+      }
+    },
+    
+    // 添加新的方法：处理vi/vim命令
+    async handleViCommand(args: string[]) {
+      if (args.length === 0) {
+        this.addTerminalLine('error', '用法: vi <文件名>');
+        this.addTerminalLine('error', '请指定要编辑的文件名');
+        return;
+      }
+      
+      const fileName = args[0];
+      let filePath = '';
+      
       try {
-        showLoading();
+        // 判断是相对路径还是绝对路径
+        if (fileName.startsWith('/')) {
+          // 绝对路径
+          filePath = fileName;
+        } else {
+          // 相对路径 - 基于当前目录
+          filePath = this.currentDir === '/' ? `/${fileName}` : `${this.currentDir}/${fileName}`;
+        }
         
-        // 检查文件是否存在
-        const checkCmd = `test -f "${this.filePath}" && echo "exists" || echo "not exists"`;
-        const existsResult = await Shell.exec(checkCmd);
+        this.addTerminalLine('system', `正在打开文件: ${filePath}`);
+        this.addTerminalLine('system', '跳转到文本编辑器...');
         
-        if (existsResult.trim() === 'not exists') {
-          this.fileExists = false;
-          this.fileContent = '';
-          this.isNewFile = true;
-          showWarning('文件不存在，将创建新文件');
+        // 跳转到文件编辑器页面
+        // 使用setTimeout确保先显示终端消息再跳转
+        setTimeout(() => {
+          $falcon.navTo('fileEditor', {
+            filePath: filePath,
+            returnTo: 'shell',
+            returnPath: this.currentDir,
+          });
+        }, 500);
+        
+      } catch (error: any) {
+        this.addTerminalLine('error', `打开文件失败: ${error.message}`);
+      }
+    },
+    
+    // 执行命令（包含目录切换处理）
+    async executeCommandWithDir(command: string) {
+      this.isExecuting = true;
+      
+      try {
+        // 首先检查是否是内置命令（包括vi）
+        const [cmd, ...args] = command.split(' ');
+        const lowerCmd = cmd.toLowerCase();
+        
+        // 如果是cd命令，特殊处理
+        if (lowerCmd === 'cd') {
+          await this.handleCdCommand(args);
           return;
         }
         
-        // 读取文件内容
-        const readCmd = `cat "${this.filePath}"`;
-        const content = await Shell.exec(readCmd);
+        // 如果是vi/vim命令，已经被handleBuiltinCommand处理了
+        // 这里主要是为了确保不会重复执行
         
-        this.fileContent = content;
-        this.originalContent = content;
-        this.fileExists = true;
-        this.isModified = false;
+        console.log('执行命令:', command);
         
-        this.updateStats();
+        // 记录开始时间
+        const startTime = Date.now();
+        
+        // 使用langningchen.Shell.exec执行命令
+        // 在命令前加上cd到当前目录，确保在工作目录执行
+        const fullCommand = `cd "${this.currentDir}" && ${command}`;
+        const result = await Shell.exec(fullCommand);
+        
+        // 计算执行时间
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        console.log('命令执行结果:', result);
+        console.log('执行耗时:', duration, 'ms');
+        
+        // 显示结果
+        if (result && result.trim()) {
+          this.addTerminalLine('output', result);
+        } else {
+          this.addTerminalLine('output', '命令执行完成，无输出');
+        }
         
       } catch (error: any) {
-        console.error('加载文件失败:', error);
-        showError(`加载文件失败: ${error.message}`);
-        this.fileContent = '加载文件失败: ' + error.message;
-        this.fileExists = false;
+        console.error('命令执行失败:', error);
+        this.addTerminalLine('error', `执行失败: ${error.message || '未知错误'}`);
       } finally {
-        hideLoading();
+        this.isExecuting = false;
       }
     },
     
-    // 保存文件
-    async saveFile() {
-      if (!this.shellInitialized || !Shell) {
-        showError('Shell模块未初始化');
-        return;
-      }
+    // 处理cd命令
+    async handleCdCommand(args: string[]) {
+      let targetPath = '';
       
-      if (!this.filePath || this.isNewFile) {
-        this.showSaveAsDialog();
-        return;
+      if (args.length === 0) {
+        // cd without arguments goes to home directory
+        targetPath = '~';
+      } else {
+        targetPath = args[0];
       }
       
       try {
-        showLoading();
+        // 构建完整的cd命令
+        let cdCommand = '';
+        if (targetPath === '~') {
+          cdCommand = 'cd ~ && pwd';
+        } else if (targetPath.startsWith('/')) {
+          // 绝对路径
+          cdCommand = `cd "${targetPath}" && pwd`;
+        } else {
+          // 相对路径
+          cdCommand = `cd "${this.currentDir}/${targetPath}" && pwd`;
+        }
         
-        // 创建临时文件
-        const tempFile = `/tmp/editor_${Date.now()}.txt`;
-        const escapedContent = this.escapeContent(this.fileContent);
+        // 执行cd命令并获取新目录
+        const result = await Shell.exec(cdCommand);
+        const newDir = result.trim();
         
-        await Shell.exec(`echo "${escapedContent}" > "${tempFile}"`);
+        // 更新当前目录
+        this.currentDir = newDir;
         
-        // 备份原文件
-        const backupFile = `${this.filePath}.bak_${Date.now()}`;
-        await Shell.exec(`cp "${this.filePath}" "${backupFile}" 2>/dev/null || true`);
-        
-        // 移动临时文件到目标位置
-        await Shell.exec(`mv "${tempFile}" "${this.filePath}"`);
-        
-        this.originalContent = this.fileContent;
-        this.isModified = false;
-        
-        // 保存成功后触发事件，通知文件管理器刷新
-        $falcon.trigger('file_saved', this.filePath);
-        
-        showSuccess('文件保存成功');
-        
-      } catch (error: any) {
-        console.error('保存文件失败:', error);
-        showError(`保存文件失败: ${error.message}`);
-      } finally {
-        hideLoading();
-      }
-    },
-    
-    // 另存为
-    async saveAsFile(newPath: string) {
-      if (!this.shellInitialized || !Shell) {
-        showError('Shell模块未初始化');
-        return;
-      }
-      
-      try {
-        showLoading();
-        
-        const escapedContent = this.escapeContent(this.fileContent);
-        
-        // 创建临时文件
-        const tempFile = `/tmp/editor_${Date.now()}.txt`;
-        await Shell.exec(`echo "${escapedContent}" > "${tempFile}"`);
-        
-        // 移动临时文件到新位置
-        await Shell.exec(`mv "${tempFile}" "${newPath}"`);
-        
-        // 更新文件信息
-        this.filePath = newPath;
-        this.fileName = this.getFileName(newPath);
-        this.originalContent = this.fileContent;
-        this.isModified = false;
-        this.isNewFile = false;
-        this.fileExists = true;
-        
-        // 通知文件管理器刷新
-        $falcon.trigger('file_saved', this.filePath);
-        
-        showSuccess('文件另存为成功');
-        this.showSaveAsModal = false;
+        // 显示新目录（pwd的输出）
+        this.addTerminalLine('output', newDir);
         
       } catch (error: any) {
-        console.error('另存为失败:', error);
-        showError(`另存为失败: ${error.message}`);
-      } finally {
-        hideLoading();
-      }
-    },
-    
-    // 转义内容
-    escapeContent(content: string): string {
-      return content
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"')
-        .replace(/\$/g, '\\$')
-        .replace(/`/g, '\\`')
-        .replace(/!/g, '\\!')
-        .replace(/~/g, '\\~')
-        .replace(/&/g, '\\&')
-        .replace(/\|/g, '\\|')
-        .replace(/;/g, '\\;')
-        .replace(/\(/g, '\\(')
-        .replace(/\)/g, '\\)')
-        .replace(/</g, '\\<')
-        .replace(/>/g, '\\>')
-        .replace(/\n/g, '\\n')
-        .replace(/\r/g, '\\r')
-        .replace(/\t/g, '\\t');
-    },
-    
-    // 内容变化处理
-    onContentChange(event: any) {
-      // 由于使用v-model，fileContent已经自动更新了
-      this.isModified = this.fileContent !== this.originalContent;
-      this.updateStats();
-    },
-    
-    // 更新统计信息
-    updateStats() {
-      if (!this.fileContent) {
-        this.totalLines = 1;
-        this.totalChars = 0;
-        return;
-      }
-      
-      const lines = this.fileContent.split('\n');
-      this.totalLines = lines.length;
-      this.totalChars = this.fileContent.length;
-      
-      // 简化光标位置计算，在小程序中无法准确获取
-      // 这里设置为0，如果需要更精确，可以考虑使用其他方法
-      this.cursorPosition = { row: 0, col: 0 };
-      
-      // 强制更新视图
-      this.$forceUpdate();
-    },
-    
-    // 显示另存为对话框
-    showSaveAsDialog() {
-      const defaultName = this.fileName || '新文件.txt';
-      openSoftKeyboard(
-        () => this.filePath || `/tmp/${defaultName}`,
-        (newPath) => {
-          if (newPath.trim()) {
-            this.saveAsFile(newPath.trim());
+        this.addTerminalLine('error', `cd: ${error.message || '无法切换目录'}`);
+        
+        // 尝试其他方式
+        if (targetPath.startsWith('/')) {
+          // 已经是绝对路径，尝试直接切换
+          try {
+            const result = await Shell.exec(`cd ${targetPath} && pwd`);
+            this.currentDir = result.trim();
+            this.addTerminalLine('output', this.currentDir);
+          } catch (e: any) {
+            this.addTerminalLine('error', `cd: 无法切换到目录 "${targetPath}"`);
           }
-        },
-        (value) => {
-          if (!value.trim()) return '文件路径不能为空';
-          return undefined;
-        }
-      );
-    },
-    
-    // 显示查找对话框
-    showFindDialog() {
-      this.showFindModal = true;
-    },
-    
-    // 执行查找
-    async performFind() {
-      if (!this.findText) {
-        this.findResults = [];
-        this.currentFindIndex = -1;
-        return;
-      }
-      
-      const content = this.fileContent;
-      const searchText = this.findText.toLowerCase();
-      const lines = content.split('\n');
-      const results: { row: number; col: number }[] = [];
-      
-      for (let row = 0; row < lines.length; row++) {
-        const line = lines[row].toLowerCase();
-        let col = line.indexOf(searchText);
-        
-        while (col !== -1) {
-          results.push({ row, col });
-          col = line.indexOf(searchText, col + 1);
         }
       }
-      
-      this.findResults = results;
-      
-      if (results.length > 0) {
-        this.currentFindIndex = 0;
-        this.highlightFindResult(results[0]);
-        showSuccess(`找到 ${results.length} 个匹配项`);
-      } else {
-        this.currentFindIndex = -1;
-        showWarning('未找到匹配项');
-      }
     },
     
-    // 高亮查找结果
-    highlightFindResult(result: { row: number; col: number }) {
-      showSuccess(`找到匹配项: 第 ${result.row + 1} 行, 第 ${result.col + 1} 列`);
-    },
-    
-    // 查找下一个
-    findNext() {
-      if (this.findResults.length === 0) {
-        this.showFindDialog();
+    // 测试Shell功能
+    async testShell() {
+      if (!this.shellInitialized || !Shell) {
+        this.addTerminalLine('error', 'Shell模块未初始化');
         return;
       }
       
-      if (this.currentFindIndex < this.findResults.length - 1) {
-        this.currentFindIndex++;
-      } else {
-        this.currentFindIndex = 0;
+      this.addTerminalLine('system', '开始Shell功能测试...');
+      
+      const testCommands = [
+        { cmd: 'echo "Shell测试成功"', desc: '基本echo命令' },
+        { cmd: 'ls', desc: '当前目录列表' },
+        { cmd: 'pwd', desc: '当前路径' },
+        { cmd: 'cd / && pwd', desc: '切换到根目录并显示' },
+        { cmd: 'mkdir test_folder_123', desc: '创建测试文件夹' },
+        { cmd: 'ls', desc: '检查文件夹是否创建' },
+        { cmd: 'cd / && pwd', desc: '切换回根目录' },
+      ];
+      
+      for (const test of testCommands) {
+        try {
+          // 对于cd命令，特殊处理
+          if (test.cmd.startsWith('cd')) {
+            const args = test.cmd.replace('cd ', '').split(' && ');
+            await this.handleCdCommand(args[0].split(' '));
+            continue;
+          }
+          
+          const result = await Shell.exec(`cd "${this.currentDir}" && ${test.cmd}`);
+          this.addTerminalLine('output', `${test.desc}: ${result.trim()}`);
+        } catch (error: any) {
+          this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
+        }
+        await this.delay(500); // 延迟避免过快
       }
       
-      this.highlightFindResult(this.findResults[this.currentFindIndex]);
+      this.addTerminalLine('system', 'Shell测试完成');
     },
     
-    // 查找上一个
-    findPrev() {
-      if (this.findResults.length === 0) {
-        this.showFindDialog();
+    // 延迟函数
+    delay(ms: number): Promise<void> {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    },
+    
+    // 显示帮助
+    showHelp() {
+      const helpText = `
+可用命令:
+
+=== 内置命令 ===
+help          显示帮助信息
+clear         清空终端显示
+history       显示命令历史
+reset         重置终端
+test          测试Shell功能
+vi <文件>     编辑文本文件 (使用内置编辑器)
+
+=== 真实Shell命令 ===
+所有Linux命令都可以直接执行：
+
+文件操作:
+  ls            列出文件
+  ls -la        详细文件列表
+  cd [目录]     切换目录（现在真正生效）
+  pwd           显示当前目录
+  cat [文件]    查看文件
+  mkdir [目录]  创建目录
+  rm [文件]     删除文件
+  touch [文件]  创建文件
+  vi <文件>     编辑文件 (会跳转到文本编辑器)
+
+系统信息:
+  ps aux        查看进程
+  df -h         磁盘使用情况
+  free -m       内存使用情况
+  uname -a      系统信息
+  date          日期时间
+
+网络工具:
+  ping [主机]   网络连通性测试
+  curl [URL]    下载文件
+  wget [URL]    下载文件
+
+安装应用:
+  miniapp_cli install [amr文件]  安装应用
+
+注意: 现在目录切换功能已修复，创建的文件夹会在正确的目录中。
+
+状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
+`;
+      this.addTerminalLine('output', helpText);
+    },
+    
+    // 显示历史
+    showHistory() {
+      if (this.commandHistory.length === 0) {
+        this.addTerminalLine('output', '命令历史为空');
         return;
       }
       
-      if (this.currentFindIndex > 0) {
-        this.currentFindIndex--;
+      let history = '命令历史:\n';
+      this.commandHistory.forEach((cmd, index) => {
+        history += `${index + 1}. ${cmd}\n`;
+      });
+      
+      this.addTerminalLine('output', history);
+    },
+    
+    // 重置终端
+    resetTerminal() {
+      this.terminalLines = [];
+      this.commandHistory = [];
+      this.historyIndex = -1;
+      this.inputText = '';
+      this.currentDir = '/';
+      this.addTerminalLine('system', '终端已重置');
+      this.initializeShell();
+    },
+    
+    // 清空终端
+    clearTerminal() {
+      this.terminalLines = [];
+      this.addTerminalLine('system', '终端已清空');
+    },
+    
+    // 滚动到底部
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const scroller = this.$refs.scroller as any;
+        if (scroller && scroller.scrollTo) {
+          setTimeout(() => {
+            scroller.scrollTo({
+              x: 0,
+              y: 999999,
+              animated: false
+            });
+          }, 50);
+        }
+      });
+    },
+    
+    // 导航历史记录
+    navigateHistory(direction: -1 | 1) {
+      if (this.commandHistory.length === 0) return;
+      
+      if (direction === -1) {
+        if (this.historyIndex > 0) this.historyIndex--;
+        if (this.historyIndex >= 0) {
+          this.inputText = this.commandHistory[this.historyIndex];
+        }
       } else {
-        this.currentFindIndex = this.findResults.length - 1;
+        if (this.historyIndex < this.commandHistory.length - 1) {
+          this.historyIndex++;
+          this.inputText = this.commandHistory[this.historyIndex];
+        } else if (this.historyIndex === this.commandHistory.length - 1) {
+          this.historyIndex++;
+          this.inputText = '';
+        }
       }
-      
-      this.highlightFindResult(this.findResults[this.currentFindIndex]);
     },
     
-    // 显示跳转行对话框
-    showGoToDialog() {
-      this.showGoToModal = true;
-    },
-    
-    // 跳转到指定行
-    goToLine(lineNumber: number) {
-      if (lineNumber < 1) lineNumber = 1;
-      if (lineNumber > this.totalLines) lineNumber = this.totalLines;
-      
-      this.showGoToModal = false;
-      
-      showSuccess(`已跳转到第 ${lineNumber} 行`);
-    },
-    
-    // 打开软键盘编辑
+    // 打开软键盘
     openKeyboard() {
       openSoftKeyboard(
-        () => this.fileContent,
-        (newContent) => {
-          if (newContent !== this.fileContent) {
-            this.fileContent = newContent;
-            this.isModified = newContent !== this.originalContent;
-            this.updateStats();
-          }
+        () => this.inputText,
+        (value) => {
+          this.inputText = value;
+          this.$forceUpdate();
         }
       );
-    },
-    
-    // 清空内容
-    clearContent() {
-      this.showConfirm('确定要清空所有内容吗？', 'clear');
-    },
-    
-    // 执行确认操作
-    executeConfirmAction(action: string) {
-      this.showConfirmModal = false;
-      
-      switch (action) {
-        case 'clear':
-          this.fileContent = '';
-          this.isModified = this.fileContent !== this.originalContent;
-          this.updateStats();
-          break;
-        case 'exit':
-          this.exitEditor();
-          break;
-        case 'save_and_exit':
-          this.saveAndExit();
-          break;
-      }
-    },
-    
-    // 保存并退出
-    async saveAndExit() {
-      await this.saveFile();
-      this.exitEditor();
-    },
-    
-    // 显示确认对话框
-    showConfirm(message: string, action: string) {
-      this.confirmTitle = message;
-      this.confirmAction = action;
-      this.showConfirmModal = true;
-    },
-    
-    // 退出编辑器
-    exitEditor() {
-      if (this.isModified) {
-        this.showConfirm('文件已修改，确定要退出吗？', 'exit');
-        return;
-      }
-      
-      // 如果是从文件管理器跳转过来的，返回时刷新
-      if (this.returnTo === 'fileManager') {
-        $falcon.trigger('file_saved', this.filePath);
-        
-        // 返回文件管理器并传递当前路径
-        $falcon.navTo('fileManager', { 
-          refresh: true,
-          path: this.returnPath 
-        });
-      } else {
-        this.$page.finish();
-      }
-    },
-    
-    // 快速退出（不保存）
-    quickExit() {
-      if (this.isModified) {
-        showWarning('文件已修改，未保存');
-      }
-      
-      if (this.returnTo === 'fileManager') {
-        $falcon.navTo('fileManager', { 
-          refresh: true,
-          path: this.returnPath 
-        });
-      } else {
-        this.$page.finish();
-      }
     },
     
     // 处理返回键
     handleBackPress() {
-      if (this.showSaveAsModal || this.showFindModal || this.showGoToModal || this.showConfirmModal) {
-        this.showSaveAsModal = false;
-        this.showFindModal = false;
-        this.showGoToModal = false;
-        this.showConfirmModal = false;
+      if (this.inputText.trim()) {
+        this.inputText = '';
+        this.$forceUpdate();
         return;
       }
       
-      this.exitEditor();
-    },
-    
-    // 获取文件信息
-    getFileInfo(): string {
-      if (!this.fileExists) return '新文件';
-      
-      const size = this.totalChars;
-      const lines = this.totalLines;
-      
-      let sizeText = '';
-      if (size < 1024) {
-        sizeText = `${size} 字节`;
-      } else if (size < 1024 * 1024) {
-        sizeText = `${(size / 1024).toFixed(1)} KB`;
-      } else {
-        sizeText = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+      if (this.terminalLines.length > 5) {
+        this.clearTerminal();
+        this.addTerminalLine('system', '再次按返回键退出');
+        return;
       }
       
-      return `${lines} 行, ${sizeText}`;
+      this.$page.finish();
     }
   }
 });
-
-export default fileEditor;
