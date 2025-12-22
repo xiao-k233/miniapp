@@ -42,7 +42,6 @@ export default defineComponent({
       isExecuting: false,
       currentDir: '/',
       shellInitialized: false,
-      showWelcome: true, // 新增：控制是否显示欢迎信息
       
       // 终端内容
       terminalLines: [] as TerminalLine[],
@@ -53,6 +52,9 @@ export default defineComponent({
       
       // Shell模块引用
       shellModule: null as ShellAPI | null,
+      
+      // 是否已显示欢迎信息
+      welcomeShown: false,
     };
   },
 
@@ -72,36 +74,11 @@ export default defineComponent({
   computed: {
     canExecute(): boolean {
       return this.inputText.trim().length > 0 && !this.isExecuting && this.shellInitialized;
-    },
-    
-    // 显示终端行，包含可能的欢迎信息
-    displayTerminalLines(): TerminalLine[] {
-      const lines = [...this.terminalLines];
-      
-      // 只有在showWelcome为true且没有其他内容时才显示欢迎信息
-      if (this.showWelcome && lines.length === 0 && this.shellInitialized) {
-        return [
-          {
-            id: 'welcome-1',
-            type: 'output',
-            content: '基于langningchen.Shell模块',
-            timestamp: Date.now()
-          },
-          {
-            id: 'welcome-2',
-            type: 'output',
-            content: '输入 "help" 查看帮助',
-            timestamp: Date.now()
-          }
-        ];
-      }
-      
-      return lines;
     }
   },
 
   methods: {
-    // 初始化Shell模块 - 静默版本
+    // 初始化Shell模块
     async initializeShell() {
       try {
         // 直接使用从langningchen导入的Shell
@@ -122,7 +99,6 @@ export default defineComponent({
         
         this.shellModule = Shell;
         this.shellInitialized = true;
-        this.showWelcome = true; // 初始化完成时设置显示欢迎信息
         
         // 获取初始目录
         try {
@@ -132,31 +108,40 @@ export default defineComponent({
           this.currentDir = '/';
         }
         
+        // 显示欢迎信息（仅第一次）
+        if (!this.welcomeShown) {
+          this.addWelcomeMessage();
+          this.welcomeShown = true;
+        }
+        
       } catch (error: any) {
         console.error('Shell模块初始化失败:', error);
         this.shellInitialized = false;
-        this.showWelcome = false;
       }
     },
     
     // 添加终端行
     addTerminalLine(type: TerminalLine['type'], content: string) {
-      // 当有内容添加时，隐藏欢迎信息
-      if (this.showWelcome) {
-        this.showWelcome = false;
-      }
-      
       const timestamp = Date.now();
+      
+      // 确保内容是字符串，避免显示[object Object]
+      const safeContent = typeof content === 'string' ? content : String(content);
       
       this.terminalLines.push({
         id: `line_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
         type,
-        content,
+        content: safeContent,
         timestamp
       });
       
       // 自动滚动
       this.scrollToBottom();
+    },
+    
+    // 添加欢迎消息
+    addWelcomeMessage() {
+      this.addTerminalLine('output', '基于langningchen.Shell模块');
+      this.addTerminalLine('output', '输入 "help" 查看帮助');
     },
     
     // 执行命令
@@ -189,7 +174,7 @@ export default defineComponent({
       await this.executeCommandWithDir(command);
     },
     
-    // 处理内置命令（前端模拟的）
+    // 处理内置命令
     async handleBuiltinCommand(command: string): Promise<boolean> {
       const [cmd, ...args] = command.split(' ');
       
@@ -268,12 +253,12 @@ export default defineComponent({
       }
     },
     
-    // 执行命令（包含目录切换处理）
+    // 执行命令
     async executeCommandWithDir(command: string) {
       this.isExecuting = true;
       
       try {
-        // 首先检查是否是内置命令（包括vi）
+        // 首先检查是否是内置命令
         const [cmd, ...args] = command.split(' ');
         const lowerCmd = cmd.toLowerCase();
         
@@ -285,19 +270,9 @@ export default defineComponent({
         
         console.log('执行命令:', command);
         
-        // 记录开始时间
-        const startTime = Date.now();
-        
         // 使用langningchen.Shell.exec执行命令
         const fullCommand = `cd "${this.currentDir}" && ${command}`;
         const result = await Shell.exec(fullCommand);
-        
-        // 计算执行时间
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        
-        console.log('命令执行结果:', result);
-        console.log('执行耗时:', duration, 'ms');
         
         // 显示结果
         if (result && result.trim()) {
@@ -359,27 +334,16 @@ export default defineComponent({
         { cmd: 'echo "Shell测试成功"' },
         { cmd: 'ls' },
         { cmd: 'pwd' },
-        { cmd: 'cd / && pwd' },
         { cmd: 'mkdir test_folder_123' },
-        { cmd: 'ls' },
-        { cmd: 'cd / && pwd' },
+        { cmd: 'rm -rf test_folder_123' },
       ];
       
       for (const test of testCommands) {
         try {
-          // 对于cd命令，特殊处理
-          if (test.cmd.startsWith('cd')) {
-            const args = test.cmd.replace('cd ', '').split(' && ');
-            await this.handleCdCommand(args[0].split(' '));
-            continue;
-          }
-          
           const result = await Shell.exec(`cd "${this.currentDir}" && ${test.cmd}`);
-          if (result && result.trim()) {
-            this.addTerminalLine('output', result.trim());
-          }
+          this.addTerminalLine('output', result.trim());
         } catch (error: any) {
-          this.addTerminalLine('error', `失败: ${error.message}`);
+          this.addTerminalLine('error', `测试失败: ${error.message}`);
         }
         await this.delay(100);
       }
@@ -457,14 +421,13 @@ vi <文件>     编辑文本文件
       this.historyIndex = -1;
       this.inputText = '';
       this.currentDir = '/';
-      this.showWelcome = true; // 重置后显示欢迎信息
-      this.initializeShell();
+      this.welcomeShown = false; // 重置欢迎显示标志
+      this.initializeShell(); // 重新初始化，会显示欢迎信息
     },
     
     // 清空终端
     clearTerminal() {
-      this.terminalLines = [];
-      this.showWelcome = false; // 清空后不显示欢迎信息
+      this.terminalLines = []; // 只清空，不添加任何消息
     },
     
     // 滚动到底部
@@ -483,12 +446,36 @@ vi <文件>     编辑文本文件
       });
     },
     
-    // 打开软键盘
+    // 导航历史记录
+    navigateHistory(direction: -1 | 1) {
+      if (this.commandHistory.length === 0) return;
+      
+      if (direction === -1) {
+        if (this.historyIndex > 0) this.historyIndex--;
+        if (this.historyIndex >= 0) {
+          this.inputText = this.commandHistory[this.historyIndex];
+        }
+      } else {
+        if (this.historyIndex < this.commandHistory.length - 1) {
+          this.historyIndex++;
+          this.inputText = this.commandHistory[this.historyIndex];
+        } else if (this.historyIndex === this.commandHistory.length - 1) {
+          this.historyIndex++;
+          this.inputText = '';
+        }
+      }
+    },
+    
+    // 打开软键盘 - 修复可能显示[object Object]的问题
     openKeyboard() {
+      // 确保获取的值是字符串
+      const currentValue = typeof this.inputText === 'string' ? this.inputText : String(this.inputText || '');
+      
       openSoftKeyboard(
-        () => this.inputText,
+        () => currentValue,
         (value) => {
-          this.inputText = value;
+          // 确保设置的值是字符串
+          this.inputText = typeof value === 'string' ? value : String(value || '');
           this.$forceUpdate();
         }
       );

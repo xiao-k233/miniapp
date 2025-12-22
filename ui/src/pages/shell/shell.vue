@@ -27,7 +27,7 @@
         scroll-direction="vertical"
         :show-scrollbar="true"
       >
-        <div v-for="line in displayTerminalLines" :key="line.id" class="terminal-line">
+        <div v-for="line in terminalLines" :key="line.id" class="terminal-line">
           <text :class="['line-text', line.type]">{{ line.content }}</text>
         </div>
         
@@ -52,7 +52,7 @@
           :class="{ 'btn-disabled': !canExecute }"
           @click="executeCommand"
         >
-          发送
+          执行
         </text>
         <text 
           class="btn btn-clear"
