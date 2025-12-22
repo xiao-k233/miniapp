@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Langning Chen
+// Copyright (C) 2025 wyxdlz54188
 // 
 // This file is part of miniapp.
 // 
@@ -18,6 +18,9 @@
 import { defineComponent } from 'vue';
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
 import { Shell } from 'langningchen';
+
+// 在顶部添加导入（如果不存在）
+import { showInfo } from '../../components/ToastMessage';
 
 // Shell API 类型定义
 interface ShellAPI {
@@ -147,6 +150,7 @@ export default defineComponent({
       this.addTerminalLine('system', '=== Shell终端 ===');
       this.addTerminalLine('system', '基于langningchen.Shell模块');
       this.addTerminalLine('system', '输入 "help" 查看帮助');
+      this.addTerminalLine('system', '提示: 使用 vi <文件名> 编辑文件');
     },
     
     // 执行命令
@@ -170,7 +174,7 @@ export default defineComponent({
         return;
       }
       
-      // 处理内置命令
+      // 处理内置命令（包括vi）
       if (await this.handleBuiltinCommand(command)) {
         return;
       }
@@ -183,7 +187,10 @@ export default defineComponent({
     async handleBuiltinCommand(command: string): Promise<boolean> {
       const [cmd, ...args] = command.split(' ');
       
-      switch (cmd.toLowerCase()) {
+      // 将命令转换为小写进行比较
+      const lowerCmd = cmd.toLowerCase();
+      
+      switch (lowerCmd) {
         case 'help':
           this.showHelp();
           return true;
@@ -204,8 +211,61 @@ export default defineComponent({
           await this.testShell();
           return true;
           
+        // 添加对vi命令的支持
+        case 'vi':
+        case 'vim':
+          await this.handleViCommand(args);
+          return true;
+          
+        case 'nano':
+        case 'ed':
+          // 也可以支持其他文本编辑器命令
+          this.addTerminalLine('system', `尝试使用 ${cmd} 编辑器`);
+          this.addTerminalLine('system', '正在打开文本编辑器...');
+          await this.handleViCommand(args);
+          return true;
+          
         default:
           return false;
+      }
+    },
+    
+    // 添加新的方法：处理vi/vim命令
+    async handleViCommand(args: string[]) {
+      if (args.length === 0) {
+        this.addTerminalLine('error', '用法: vi <文件名>');
+        this.addTerminalLine('error', '请指定要编辑的文件名');
+        return;
+      }
+      
+      const fileName = args[0];
+      let filePath = '';
+      
+      try {
+        // 判断是相对路径还是绝对路径
+        if (fileName.startsWith('/')) {
+          // 绝对路径
+          filePath = fileName;
+        } else {
+          // 相对路径 - 基于当前目录
+          filePath = this.currentDir === '/' ? `/${fileName}` : `${this.currentDir}/${fileName}`;
+        }
+        
+        this.addTerminalLine('system', `正在打开文件: ${filePath}`);
+        this.addTerminalLine('system', '跳转到文本编辑器...');
+        
+        // 跳转到文件编辑器页面
+        // 使用setTimeout确保先显示终端消息再跳转
+        setTimeout(() => {
+          $falcon.navTo('fileEditor', {
+            filePath: filePath,
+            returnTo: 'shell',
+            returnPath: this.currentDir,
+          });
+        }, 500);
+        
+      } catch (error: any) {
+        this.addTerminalLine('error', `打开文件失败: ${error.message}`);
       }
     },
     
@@ -214,13 +274,18 @@ export default defineComponent({
       this.isExecuting = true;
       
       try {
-        // 检查是否是cd命令
+        // 首先检查是否是内置命令（包括vi）
         const [cmd, ...args] = command.split(' ');
+        const lowerCmd = cmd.toLowerCase();
         
-        if (cmd.toLowerCase() === 'cd') {
+        // 如果是cd命令，特殊处理
+        if (lowerCmd === 'cd') {
           await this.handleCdCommand(args);
           return;
         }
+        
+        // 如果是vi/vim命令，已经被handleBuiltinCommand处理了
+        // 这里主要是为了确保不会重复执行
         
         console.log('执行命令:', command);
         
@@ -360,6 +425,7 @@ clear         清空终端显示
 history       显示命令历史
 reset         重置终端
 test          测试Shell功能
+vi <文件>     编辑文本文件 (使用内置编辑器)
 
 === 真实Shell命令 ===
 所有Linux命令都可以直接执行：
@@ -373,6 +439,7 @@ test          测试Shell功能
   mkdir [目录]  创建目录
   rm [文件]     删除文件
   touch [文件]  创建文件
+  vi <文件>     编辑文件 (会跳转到文本编辑器)
 
 系统信息:
   ps aux        查看进程
