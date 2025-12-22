@@ -19,9 +19,6 @@ import { defineComponent } from 'vue';
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
 import { Shell } from 'langningchen';
 
-// 在顶部添加导入（如果不存在）
-import { showInfo } from '../../components/ToastMessage';
-
 // Shell API 类型定义
 interface ShellAPI {
   initialize(): Promise<void>;
@@ -45,6 +42,7 @@ export default defineComponent({
       isExecuting: false,
       currentDir: '/',
       shellInitialized: false,
+      showWelcome: true, // 新增：控制是否显示欢迎信息
       
       // 终端内容
       terminalLines: [] as TerminalLine[],
@@ -61,7 +59,6 @@ export default defineComponent({
   mounted() {
     console.log('Shell页面开始加载...');
     this.initializeShell();
-    this.addWelcomeMessage();
     
     // 设置页面返回键处理
     this.$page.$npage.setSupportBack(true);
@@ -75,11 +72,36 @@ export default defineComponent({
   computed: {
     canExecute(): boolean {
       return this.inputText.trim().length > 0 && !this.isExecuting && this.shellInitialized;
+    },
+    
+    // 显示终端行，包含可能的欢迎信息
+    displayTerminalLines(): TerminalLine[] {
+      const lines = [...this.terminalLines];
+      
+      // 只有在showWelcome为true且没有其他内容时才显示欢迎信息
+      if (this.showWelcome && lines.length === 0 && this.shellInitialized) {
+        return [
+          {
+            id: 'welcome-1',
+            type: 'output',
+            content: '基于langningchen.Shell模块',
+            timestamp: Date.now()
+          },
+          {
+            id: 'welcome-2',
+            type: 'output',
+            content: '输入 "help" 查看帮助',
+            timestamp: Date.now()
+          }
+        ];
+      }
+      
+      return lines;
     }
   },
 
   methods: {
-    // 初始化Shell模块 - 简化版本，删除所有提示
+    // 初始化Shell模块 - 静默版本
     async initializeShell() {
       try {
         // 直接使用从langningchen导入的Shell
@@ -100,8 +122,9 @@ export default defineComponent({
         
         this.shellModule = Shell;
         this.shellInitialized = true;
+        this.showWelcome = true; // 初始化完成时设置显示欢迎信息
         
-        // 获取初始目录（静默获取，不显示提示）
+        // 获取初始目录
         try {
           const result = await Shell.exec('pwd');
           this.currentDir = result.trim();
@@ -109,23 +132,20 @@ export default defineComponent({
           this.currentDir = '/';
         }
         
-        // 测试Shell功能（静默测试，不显示提示）
-        setTimeout(async () => {
-          try {
-            await Shell.exec('echo "Shell ready"');
-          } catch (error: any) {
-            // 静默处理错误
-          }
-        }, 100);
-        
       } catch (error: any) {
         console.error('Shell模块初始化失败:', error);
         this.shellInitialized = false;
+        this.showWelcome = false;
       }
     },
     
     // 添加终端行
     addTerminalLine(type: TerminalLine['type'], content: string) {
+      // 当有内容添加时，隐藏欢迎信息
+      if (this.showWelcome) {
+        this.showWelcome = false;
+      }
+      
       const timestamp = Date.now();
       
       this.terminalLines.push({
@@ -137,12 +157,6 @@ export default defineComponent({
       
       // 自动滚动
       this.scrollToBottom();
-    },
-    
-    // 添加欢迎消息 - 简化版本
-    addWelcomeMessage() {
-      this.addTerminalLine('output', '基于langningchen.Shell模块');
-      this.addTerminalLine('output', '输入 "help" 查看帮助');
     },
     
     // 执行命令
@@ -220,7 +234,7 @@ export default defineComponent({
       }
     },
     
-    // 添加新的方法：处理vi/vim命令 - 简化版本，删除提示
+    // 处理vi/vim命令
     async handleViCommand(args: string[]) {
       if (args.length === 0) {
         this.addTerminalLine('error', '用法: vi <文件名>');
@@ -240,7 +254,7 @@ export default defineComponent({
           filePath = this.currentDir === '/' ? `/${fileName}` : `${this.currentDir}/${fileName}`;
         }
         
-        // 直接跳转到文件编辑器页面，不显示提示
+        // 直接跳转到文件编辑器页面
         setTimeout(() => {
           $falcon.navTo('fileEditor', {
             filePath: filePath,
@@ -275,7 +289,6 @@ export default defineComponent({
         const startTime = Date.now();
         
         // 使用langningchen.Shell.exec执行命令
-        // 在命令前加上cd到当前目录，确保在工作目录执行
         const fullCommand = `cd "${this.currentDir}" && ${command}`;
         const result = await Shell.exec(fullCommand);
         
@@ -290,7 +303,6 @@ export default defineComponent({
         if (result && result.trim()) {
           this.addTerminalLine('output', result);
         }
-        // 注意：不再显示"命令执行完成，无输出"的提示
         
       } catch (error: any) {
         console.error('命令执行失败:', error);
@@ -300,7 +312,7 @@ export default defineComponent({
       }
     },
     
-    // 处理cd命令 - 简化版本，删除成功提示
+    // 处理cd命令
     async handleCdCommand(args: string[]) {
       let targetPath = '';
       
@@ -331,14 +343,12 @@ export default defineComponent({
         // 更新当前目录
         this.currentDir = newDir;
         
-        // 注意：不再显示新目录的提示
-        
       } catch (error: any) {
         this.addTerminalLine('error', `cd: ${error.message || '无法切换目录'}`);
       }
     },
     
-    // 测试Shell功能 - 简化版本，删除所有提示
+    // 测试Shell功能
     async testShell() {
       if (!this.shellInitialized || !Shell) {
         this.addTerminalLine('error', 'Shell模块未初始化');
@@ -346,13 +356,13 @@ export default defineComponent({
       }
       
       const testCommands = [
-        { cmd: 'echo "Shell测试成功"', desc: '基本echo命令' },
-        { cmd: 'ls', desc: '当前目录列表' },
-        { cmd: 'pwd', desc: '当前路径' },
-        { cmd: 'cd / && pwd', desc: '切换到根目录并显示' },
-        { cmd: 'mkdir test_folder_123', desc: '创建测试文件夹' },
-        { cmd: 'ls', desc: '检查文件夹是否创建' },
-        { cmd: 'cd / && pwd', desc: '切换回根目录' },
+        { cmd: 'echo "Shell测试成功"' },
+        { cmd: 'ls' },
+        { cmd: 'pwd' },
+        { cmd: 'cd / && pwd' },
+        { cmd: 'mkdir test_folder_123' },
+        { cmd: 'ls' },
+        { cmd: 'cd / && pwd' },
       ];
       
       for (const test of testCommands) {
@@ -365,11 +375,13 @@ export default defineComponent({
           }
           
           const result = await Shell.exec(`cd "${this.currentDir}" && ${test.cmd}`);
-          this.addTerminalLine('output', result.trim());
+          if (result && result.trim()) {
+            this.addTerminalLine('output', result.trim());
+          }
         } catch (error: any) {
-          this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
+          this.addTerminalLine('error', `失败: ${error.message}`);
         }
-        await this.delay(100); // 缩短延迟
+        await this.delay(100);
       }
     },
     
@@ -445,14 +457,14 @@ vi <文件>     编辑文本文件
       this.historyIndex = -1;
       this.inputText = '';
       this.currentDir = '/';
-      this.addWelcomeMessage();
+      this.showWelcome = true; // 重置后显示欢迎信息
       this.initializeShell();
     },
     
     // 清空终端
     clearTerminal() {
       this.terminalLines = [];
-      this.addWelcomeMessage();
+      this.showWelcome = false; // 清空后不显示欢迎信息
     },
     
     // 滚动到底部
@@ -471,26 +483,6 @@ vi <文件>     编辑文本文件
       });
     },
     
-    // 导航历史记录
-    navigateHistory(direction: -1 | 1) {
-      if (this.commandHistory.length === 0) return;
-      
-      if (direction === -1) {
-        if (this.historyIndex > 0) this.historyIndex--;
-        if (this.historyIndex >= 0) {
-          this.inputText = this.commandHistory[this.historyIndex];
-        }
-      } else {
-        if (this.historyIndex < this.commandHistory.length - 1) {
-          this.historyIndex++;
-          this.inputText = this.commandHistory[this.historyIndex];
-        } else if (this.historyIndex === this.commandHistory.length - 1) {
-          this.historyIndex++;
-          this.inputText = '';
-        }
-      }
-    },
-    
     // 打开软键盘
     openKeyboard() {
       openSoftKeyboard(
@@ -502,7 +494,7 @@ vi <文件>     编辑文本文件
       );
     },
     
-    // 处理返回键 - 简化版本
+    // 处理返回键
     handleBackPress() {
       if (this.inputText.trim()) {
         this.inputText = '';

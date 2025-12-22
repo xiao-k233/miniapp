@@ -1,20 +1,20 @@
 <!--
- Copyright (C) 2025 Langning Chen
- 
- This file is part of miniapp.
- 
- miniapp is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- miniapp is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
+    Copyright (C) 2025 wyxdlz54188
+
+    This file is part of miniapp.
+
+    miniapp is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    miniapp is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
 -->
 
 <template>
@@ -27,7 +27,7 @@
         scroll-direction="vertical"
         :show-scrollbar="true"
       >
-        <div v-for="line in terminalLines" :key="line.id" class="terminal-line">
+        <div v-for="line in displayTerminalLines" :key="line.id" class="terminal-line">
           <text :class="['line-text', line.type]">{{ line.content }}</text>
         </div>
         
@@ -52,7 +52,7 @@
           :class="{ 'btn-disabled': !canExecute }"
           @click="executeCommand"
         >
-          执行
+          发送
         </text>
         <text 
           class="btn btn-clear"
