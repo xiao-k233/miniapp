@@ -19,6 +19,9 @@ import { defineComponent } from 'vue';
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
 import { Shell } from 'langningchen';
 
+// 在顶部添加导入（如果不存在）
+import { showInfo } from '../../components/ToastMessage';
+
 // Shell API 类型定义
 interface ShellAPI {
   initialize(): Promise<void>;
@@ -52,15 +55,13 @@ export default defineComponent({
       
       // Shell模块引用
       shellModule: null as ShellAPI | null,
-      
-      // 是否已显示欢迎信息
-      welcomeShown: false,
     };
   },
 
   mounted() {
     console.log('Shell页面开始加载...');
     this.initializeShell();
+    this.addWelcomeMessage();
     
     // 设置页面返回键处理
     this.$page.$npage.setSupportBack(true);
@@ -78,7 +79,7 @@ export default defineComponent({
   },
 
   methods: {
-    // 初始化Shell模块
+    // 初始化Shell模块 - 简化版本，删除所有提示
     async initializeShell() {
       try {
         // 直接使用从langningchen导入的Shell
@@ -100,20 +101,22 @@ export default defineComponent({
         this.shellModule = Shell;
         this.shellInitialized = true;
         
-        // 获取初始目录
+        // 获取初始目录（静默获取，不显示提示）
         try {
           const result = await Shell.exec('pwd');
-          // 确保结果是字符串
-          this.currentDir = this.ensureString(result).trim();
+          this.currentDir = result.trim();
         } catch (error: any) {
           this.currentDir = '/';
         }
         
-        // 显示欢迎信息（仅第一次）
-        if (!this.welcomeShown) {
-          this.addWelcomeMessage();
-          this.welcomeShown = true;
-        }
+        // 测试Shell功能（静默测试，不显示提示）
+        setTimeout(async () => {
+          try {
+            await Shell.exec('echo "Shell ready"');
+          } catch (error: any) {
+            // 静默处理错误
+          }
+        }, 100);
         
       } catch (error: any) {
         console.error('Shell模块初始化失败:', error);
@@ -121,55 +124,14 @@ export default defineComponent({
       }
     },
     
-    // 确保字符串的安全转换函数
-    ensureString(value: any): string {
-      if (value === null || value === undefined) {
-        return '';
-      }
-      
-      // 如果是字符串，直接返回
-      if (typeof value === 'string') {
-        return value;
-      }
-      
-      // 如果有toString方法，使用它
-      if (value.toString && typeof value.toString === 'function') {
-        try {
-          const str = value.toString();
-          // 检查toString是否返回了[object Object]
-          if (str === '[object Object]') {
-            // 尝试JSON.stringify
-            try {
-              return JSON.stringify(value);
-            } catch (e) {
-              return '{}';
-            }
-          }
-          return str;
-        } catch (e) {
-          return '';
-        }
-      }
-      
-      // 最后尝试JSON.stringify
-      try {
-        return JSON.stringify(value);
-      } catch (e) {
-        return '';
-      }
-    },
-    
     // 添加终端行
-    addTerminalLine(type: TerminalLine['type'], content: any) {
+    addTerminalLine(type: TerminalLine['type'], content: string) {
       const timestamp = Date.now();
-      
-      // 确保内容是字符串，避免显示[object Object]
-      const safeContent = this.ensureString(content);
       
       this.terminalLines.push({
         id: `line_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
         type,
-        content: safeContent,
+        content,
         timestamp
       });
       
@@ -177,9 +139,9 @@ export default defineComponent({
       this.scrollToBottom();
     },
     
-    // 添加欢迎消息
+    // 添加欢迎消息 - 简化版本
     addWelcomeMessage() {
-      this.addTerminalLine('output', '基于langningchen.Shell模块');
+      this.addTerminalLine('output', 'Shell by@wyxdlz54188');
       this.addTerminalLine('output', '输入 "help" 查看帮助');
     },
     
@@ -213,7 +175,7 @@ export default defineComponent({
       await this.executeCommandWithDir(command);
     },
     
-    // 处理内置命令
+    // 处理内置命令（前端模拟的）
     async handleBuiltinCommand(command: string): Promise<boolean> {
       const [cmd, ...args] = command.split(' ');
       
@@ -258,7 +220,7 @@ export default defineComponent({
       }
     },
     
-    // 处理vi/vim命令
+    // 添加新的方法：处理vi/vim命令 - 简化版本，删除提示
     async handleViCommand(args: string[]) {
       if (args.length === 0) {
         this.addTerminalLine('error', '用法: vi <文件名>');
@@ -278,7 +240,7 @@ export default defineComponent({
           filePath = this.currentDir === '/' ? `/${fileName}` : `${this.currentDir}/${fileName}`;
         }
         
-        // 直接跳转到文件编辑器页面
+        // 直接跳转到文件编辑器页面，不显示提示
         setTimeout(() => {
           $falcon.navTo('fileEditor', {
             filePath: filePath,
@@ -292,12 +254,12 @@ export default defineComponent({
       }
     },
     
-    // 执行命令
+    // 执行命令（包含目录切换处理）
     async executeCommandWithDir(command: string) {
       this.isExecuting = true;
       
       try {
-        // 首先检查是否是内置命令
+        // 首先检查是否是内置命令（包括vi）
         const [cmd, ...args] = command.split(' ');
         const lowerCmd = cmd.toLowerCase();
         
@@ -309,27 +271,36 @@ export default defineComponent({
         
         console.log('执行命令:', command);
         
+        // 记录开始时间
+        const startTime = Date.now();
+        
         // 使用langningchen.Shell.exec执行命令
+        // 在命令前加上cd到当前目录，确保在工作目录执行
         const fullCommand = `cd "${this.currentDir}" && ${command}`;
         const result = await Shell.exec(fullCommand);
         
-        // 确保结果是字符串
-        const safeResult = this.ensureString(result);
+        // 计算执行时间
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        console.log('命令执行结果:', result);
+        console.log('执行耗时:', duration, 'ms');
         
         // 显示结果
-        if (safeResult && safeResult.trim()) {
-          this.addTerminalLine('output', safeResult);
+        if (result && result.trim()) {
+          this.addTerminalLine('output', result);
         }
+        // 注意：不再显示"命令执行完成，无输出"的提示
         
       } catch (error: any) {
         console.error('命令执行失败:', error);
-        this.addTerminalLine('error', `执行失败: ${this.ensureString(error.message || '未知错误')}`);
+        this.addTerminalLine('error', `执行失败: ${error.message || '未知错误'}`);
       } finally {
         this.isExecuting = false;
       }
     },
     
-    // 处理cd命令
+    // 处理cd命令 - 简化版本，删除成功提示
     async handleCdCommand(args: string[]) {
       let targetPath = '';
       
@@ -355,19 +326,19 @@ export default defineComponent({
         
         // 执行cd命令并获取新目录
         const result = await Shell.exec(cdCommand);
-        // 确保结果是字符串
-        const safeResult = this.ensureString(result);
-        const newDir = safeResult.trim();
+        const newDir = result.trim();
         
         // 更新当前目录
         this.currentDir = newDir;
         
+        // 注意：不再显示新目录的提示
+        
       } catch (error: any) {
-        this.addTerminalLine('error', `cd: ${this.ensureString(error.message || '无法切换目录')}`);
+        this.addTerminalLine('error', `cd: ${error.message || '无法切换目录'}`);
       }
     },
     
-    // 测试Shell功能
+    // 测试Shell功能 - 简化版本，删除所有提示
     async testShell() {
       if (!this.shellInitialized || !Shell) {
         this.addTerminalLine('error', 'Shell模块未初始化');
@@ -375,25 +346,30 @@ export default defineComponent({
       }
       
       const testCommands = [
-        { cmd: 'echo "Shell测试成功"' },
-        { cmd: 'ls' },
-        { cmd: 'pwd' },
-        { cmd: 'mkdir test_folder_123' },
-        { cmd: 'rm -rf test_folder_123' },
+        { cmd: 'echo "Shell测试成功"', desc: '基本echo命令' },
+        { cmd: 'ls', desc: '当前目录列表' },
+        { cmd: 'pwd', desc: '当前路径' },
+        { cmd: 'cd / && pwd', desc: '切换到根目录并显示' },
+        { cmd: 'mkdir test_folder_123', desc: '创建测试文件夹' },
+        { cmd: 'ls', desc: '检查文件夹是否创建' },
+        { cmd: 'cd / && pwd', desc: '切换回根目录' },
       ];
       
       for (const test of testCommands) {
         try {
-          const result = await Shell.exec(`cd "${this.currentDir}" && ${test.cmd}`);
-          // 确保结果是字符串
-          const safeResult = this.ensureString(result);
-          if (safeResult.trim()) {
-            this.addTerminalLine('output', safeResult.trim());
+          // 对于cd命令，特殊处理
+          if (test.cmd.startsWith('cd')) {
+            const args = test.cmd.replace('cd ', '').split(' && ');
+            await this.handleCdCommand(args[0].split(' '));
+            continue;
           }
+          
+          const result = await Shell.exec(`cd "${this.currentDir}" && ${test.cmd}`);
+          this.addTerminalLine('output', result.trim());
         } catch (error: any) {
-          this.addTerminalLine('error', `测试失败: ${this.ensureString(error.message)}`);
+          this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
         }
-        await this.delay(100);
+        await this.delay(100); // 缩短延迟
       }
     },
     
@@ -469,13 +445,14 @@ vi <文件>     编辑文本文件
       this.historyIndex = -1;
       this.inputText = '';
       this.currentDir = '/';
-      this.welcomeShown = false; // 重置欢迎显示标志
-      this.initializeShell(); // 重新初始化，会显示欢迎信息
+      this.addWelcomeMessage();
+      this.initializeShell();
     },
     
     // 清空终端
     clearTerminal() {
-      this.terminalLines = []; // 只清空，不添加任何消息
+      this.terminalLines = [];
+      this.addWelcomeMessage();
     },
     
     // 滚动到底部
@@ -514,22 +491,18 @@ vi <文件>     编辑文本文件
       }
     },
     
-    // 打开软键盘 - 彻底修复可能显示[object Object]的问题
+    // 打开软键盘
     openKeyboard() {
-      // 直接使用字符串值
-      const currentValue = this.inputText || '';
-      
       openSoftKeyboard(
-        () => currentValue,
+        () => this.inputText,
         (value) => {
-          // 使用确保字符串函数处理返回值
-          this.inputText = this.ensureString(value);
+          this.inputText = value;
           this.$forceUpdate();
         }
       );
     },
     
-    // 处理返回键
+    // 处理返回键 - 简化版本
     handleBackPress() {
       if (this.inputText.trim()) {
         this.inputText = '';
