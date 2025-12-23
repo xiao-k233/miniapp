@@ -1,45 +1,71 @@
 // Copyright (C) 2025 Langning Chen
 // 
 // This file is part of miniapp.
-// 
-// miniapp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-// 
-// miniapp is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-// 
-// You should have received a copy of the GNU General Public License
-// along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
 
-import { showWarning } from '../components/ToastMessage';
+type Getter = () => string;
+type Setter = (value: string) => void;
 
-export function openSoftKeyboard(
-    get: () => string,
-    set: (value: string) => void,
-    validate?: (value: string) => string | undefined
-) {
-    const currentValue = get();
-    $falcon.navTo('softKeyboard', { data: currentValue });
+/**
+ * 将软键盘返回的任意数据统一规整为 string
+ * —— 这是防止出现 [object Object] 的关键
+ */
+function normalizeKeyboardInput(input: any): string {
+    if (typeof input === 'string') {
+        return input;
+    }
 
-    const handler = (e: { data: string }) => {
-        const newValue = e.data;
+    if (input && typeof input === 'object') {
+        // 常见软键盘数据结构兜底
+        if (typeof input.value === 'string') return input.value;
+        if (typeof input.text === 'string') return input.text;
+        if (typeof input.key === 'string') return input.key;
+        if (typeof input.char === 'string') return input.char;
+    }
 
-        if (validate) {
-            const validationError = validate(newValue);
-            if (validationError) {
-                showWarning(validationError);
-                $falcon.off('softKeyboard', handler);
-                return;
-            }
+    return '';
+}
+
+/**
+ * 打开软键盘
+ * @param getter 获取当前输入内容
+ * @param setter 设置输入内容（只允许 string）
+ */
+export function openSoftKeyboard(getter: Getter, setter: Setter) {
+    // 这里假设你是通过 $falcon 或某个原生接口打开软键盘
+    // 根据你的项目实际 API 名称调整即可
+
+    $falcon.trigger('open_soft_keyboard', {
+        value: getter(),
+
+        /**
+         * 输入回调
+         */
+        onInput: (raw: any) => {
+            const value = normalizeKeyboardInput(raw);
+            setter(value);
+        },
+
+        /**
+         * 删除回调（如果你的软键盘有）
+         */
+        onDelete: () => {
+            const current = getter();
+            setter(current.slice(0, -1));
+        },
+
+        /**
+         * 确认 / 完成
+         */
+        onConfirm: (raw: any) => {
+            const value = normalizeKeyboardInput(raw);
+            setter(value);
+        },
+
+        /**
+         * 关闭
+         */
+        onClose: () => {
+            // 可选：什么都不做
         }
-
-        set(newValue);
-        $falcon.off('softKeyboard', handler);
-    };
-
-    $falcon.on<string>('softKeyboard', handler);
+    });
 }
