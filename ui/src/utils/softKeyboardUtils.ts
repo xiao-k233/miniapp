@@ -25,7 +25,9 @@ export function openSoftKeyboard(
     const currentValue = get();
     $falcon.navTo('softKeyboard', { data: currentValue });
 
-    const handler = (newValue: string) => {
+    const handler = (e: { data: string }) => {
+        const newValue = e.data;
+
         if (validate) {
             const validationError = validate(newValue);
             if (validationError) {
