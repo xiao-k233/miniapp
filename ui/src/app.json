@@ -9,7 +9,6 @@
     "aiNav": "pages/aiNav/aiNav.vue",
     "fileManager": "pages/fileManager/fileManager.vue",
     "fileEditor": "pages/fileEditor/fileEditor.vue",
-    "shellSettings": "pages/shellSettings/shellSettings.vue",
     "deviceinfo": "pages/deviceinfo/deviceinfo.vue"
   },
   "options": {
