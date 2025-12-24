@@ -30,7 +30,7 @@ interface ShellAPI {
 
 interface TerminalLine {
   id: string;
-  type: 'command' | 'output' | 'error' | 'system' | 'password';
+  type: 'command' | 'output' | 'error' | 'system';
   content: string;
   timestamp: number;
 }
@@ -55,13 +55,6 @@ export default defineComponent({
       
       // Shell模块引用
       shellModule: null as ShellAPI | null,
-      
-      // passwd相关状态
-      passwdInProgress: false,
-      passwdStep: 0,
-      passwdUsername: 'root',
-      newPassword: '',
-      confirmPassword: '',
     };
   },
 
@@ -165,17 +158,10 @@ export default defineComponent({
       const command = this.inputText.trim();
       if (!command || this.isExecuting) return;
       
-      // 如果是passwd交互模式，处理密码输入
-      if (this.passwdInProgress) {
-        await this.handlePasswdInput(command);
-        // 注意：这里不清空inputText，让用户在密码输入过程中保留输入
-        return;
-      }
-      
       // 显示命令
       this.addTerminalLine('command', `${this.currentDir} $ ${command}`);
       
-      // 保存到历史记录（除了passwd交互模式）
+      // 保存到历史记录
       if (this.commandHistory[this.commandHistory.length - 1] !== command) {
         this.commandHistory.push(command);
       }
@@ -188,7 +174,7 @@ export default defineComponent({
         return;
       }
       
-      // 处理内置命令（包括vi和passwd）
+      // 处理内置命令（包括vi）
       if (await this.handleBuiltinCommand(command)) {
         return;
       }
@@ -239,207 +225,9 @@ export default defineComponent({
           await this.handleViCommand(args);
           return true;
           
-        // 添加对passwd命令的支持
-        case 'passwd':
-          await this.startPasswdProcess(args);
-          return true;
-          
         default:
           return false;
       }
-    },
-    
-    // 开始passwd密码修改流程
-    async startPasswdProcess(args: string[]) {
-      const username = args[0] || 'root';
-      this.passwdUsername = username;
-      
-      // 设置passwd交互模式
-      this.passwdInProgress = true;
-      this.passwdStep = 1;
-      this.newPassword = '';
-      this.confirmPassword = '';
-      
-      // 显示passwd交互界面（完全模拟Linux passwd命令）
-      this.addTerminalLine('password', `Changing password for ${username}`);
-      this.addTerminalLine('password', `Current password: `);
-      
-      // 重要：这里不清空inputText，让用户可以输入密码
-      // 但是显示提示，让用户知道该输入什么
-      this.inputText = '';
-    },
-    
-    // 处理passwd密码输入
-    async handlePasswdInput(input: string) {
-      if (!input.trim()) {
-        // 如果输入为空，显示星号表示密码输入
-        this.addTerminalLine('password', '*'.repeat(10));
-      } else {
-        // 显示星号表示密码输入
-        this.addTerminalLine('password', '*'.repeat(Math.min(input.length, 10)));
-      }
-      
-      if (this.passwdStep === 1) {
-        // 步骤1：输入当前密码（这里简单跳过验证，因为我们是root）
-        this.newPassword = ''; // 重置新密码
-        this.addTerminalLine('password', `New password: `);
-        this.passwdStep = 2; // 步骤2：等待输入新密码
-        this.inputText = ''; // 清空输入框，准备接收新密码
-        
-      } else if (this.passwdStep === 2) {
-        // 步骤2：输入新密码
-        if (input.length < 1) {
-          this.addTerminalLine('error', 'Password cannot be empty');
-          this.addTerminalLine('password', `New password: `);
-          this.inputText = '';
-          return;
-        }
-        
-        this.newPassword = input;
-        this.addTerminalLine('password', `Retype new password: `);
-        this.passwdStep = 3; // 步骤3：等待确认新密码
-        this.inputText = ''; // 清空输入框，准备确认密码
-        
-      } else if (this.passwdStep === 3) {
-        // 步骤3：确认新密码
-        if (input !== this.newPassword) {
-          this.addTerminalLine('error', 'Sorry, passwords do not match');
-          this.addTerminalLine('password', `New password: `);
-          this.passwdStep = 2;
-          this.newPassword = '';
-          this.inputText = '';
-          return;
-        }
-        
-        this.confirmPassword = input;
-        
-        // 密码验证通过，开始修改
-        this.addTerminalLine('password', 'Updating password...');
-        await this.changePassword(this.newPassword);
-        
-        // 重置状态
-        this.passwdInProgress = false;
-        this.passwdStep = 0;
-        this.newPassword = '';
-        this.confirmPassword = '';
-        this.inputText = ''; // 清空输入框，准备接收新命令
-      }
-    },
-    
-    // 实际修改密码 - 使用openssl生成加密密码
-    async changePassword(newPassword: string) {
-      try {
-        // 检查文件系统是否可写
-        const mountInfo = await Shell.exec('mount | grep " / " 2>/dev/null || echo "rw"');
-        let isReadOnly = mountInfo.includes('ro,');
-        
-        if (isReadOnly) {
-          // 尝试重新挂载为读写
-          try {
-            await Shell.exec('mount -o remount,rw /');
-            isReadOnly = false;
-            this.addTerminalLine('system', 'Remounted filesystem as read-write');
-          } catch (error: any) {
-            this.addTerminalLine('error', 'Cannot remount filesystem as read-write');
-            this.addTerminalLine('error', 'Password change failed');
-            return;
-          }
-        }
-        
-        // 检查openssl是否可用
-        const opensslCheck = await Shell.exec('which openssl 2>/dev/null || echo "not found"');
-        
-        if (opensslCheck.includes('not found')) {
-          this.addTerminalLine('error', 'openssl not found. Cannot encrypt password.');
-          this.addTerminalLine('error', 'Try: echo "root:newpassword" | chpasswd');
-          return;
-        }
-        
-        // 使用openssl生成SHA-512加密密码
-        // 生成随机salt（8个字符）
-        const salt = this.generateRandomSalt();
-        
-        // 使用openssl生成密码哈希（SHA-512）
-        const opensslCmd = `openssl passwd -6 -salt ${salt} "${newPassword}" 2>/dev/null`;
-        const encryptedPassword = await Shell.exec(opensslCmd);
-        
-        if (!encryptedPassword || encryptedPassword.includes('error')) {
-          // 如果SHA-512失败，尝试使用SHA-256
-          const opensslCmd2 = `openssl passwd -5 -salt ${salt} "${newPassword}" 2>/dev/null`;
-          const encryptedPassword2 = await Shell.exec(opensslCmd2);
-          
-          if (!encryptedPassword2 || encryptedPassword2.includes('error')) {
-            this.addTerminalLine('error', 'Failed to generate encrypted password with openssl');
-            return;
-          }
-          
-          await this.updateShadowFile(encryptedPassword2.trim());
-        } else {
-          await this.updateShadowFile(encryptedPassword.trim());
-        }
-        
-        this.addTerminalLine('password', `passwd: password updated successfully for ${this.passwdUsername}`);
-        
-        // 如果之前是只读的，尝试改回只读
-        if (isReadOnly) {
-          try {
-            await Shell.exec('mount -o remount,ro / 2>/dev/null || true');
-          } catch (e) {
-            // 忽略错误
-          }
-        }
-        
-      } catch (error: any) {
-        this.addTerminalLine('error', `Password change failed: ${error.message}`);
-      }
-    },
-    
-    // 更新shadow文件
-    async updateShadowFile(encryptedPassword: string) {
-      try {
-        // 备份旧的shadow文件
-        await Shell.exec('cp /etc/shadow /etc/shadow.bak 2>/dev/null || true');
-        
-        // 更新shadow文件中的密码字段
-        const username = this.passwdUsername;
-        const updateCmd = `
-if grep -q "^${username}:" /etc/shadow; then
-  current_line=$(grep "^${username}:" /etc/shadow)
-  IFS=':' read -r -a parts <<< "$current_line"
-  parts[1]="${encryptedPassword}"
-  new_line="${parts[0]}:${parts[1]}:${parts[2]}:${parts[3]}:${parts[4]}:${parts[5]}:${parts[6]}:${parts[7]}:${parts[8]}"
-  sed -i "s|^${username}:.*|$new_line|" /etc/shadow
-else
-  echo "${username}:${encryptedPassword}:0:0:99999:7:::" >> /etc/shadow
-fi
-        `;
-        
-        await Shell.exec(updateCmd);
-        
-        // 验证密码是否更新成功
-        const verifyCmd = `grep "^${username}:" /etc/shadow | cut -d: -f2`;
-        const storedHash = await Shell.exec(verifyCmd);
-        
-        if (storedHash.trim() === encryptedPassword) {
-          this.addTerminalLine('system', 'Password hash updated successfully in /etc/shadow');
-        } else {
-          this.addTerminalLine('error', 'Password update may have failed. Hash mismatch.');
-        }
-        
-      } catch (error: any) {
-        this.addTerminalLine('error', `Failed to update shadow file: ${error.message}`);
-        throw error;
-      }
-    },
-    
-    // 生成随机salt
-    generateRandomSalt(): string {
-      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./';
-      let salt = '';
-      for (let i = 0; i < 8; i++) {
-        salt += chars[Math.floor(Math.random() * chars.length)];
-      }
-      return salt;
     },
     
     // 添加新的方法：处理vi/vim命令
@@ -496,12 +284,16 @@ fi
           return;
         }
         
+        // 如果是vi/vim命令，已经被handleBuiltinCommand处理了
+        // 这里主要是为了确保不会重复执行
+        
         console.log('执行命令:', command);
         
         // 记录开始时间
         const startTime = Date.now();
         
         // 使用langningchen.Shell.exec执行命令
+        // 在命令前加上cd到当前目录，确保在工作目录执行
         const fullCommand = `cd "${this.currentDir}" && ${command}`;
         const result = await Shell.exec(fullCommand);
         
@@ -563,6 +355,18 @@ fi
         
       } catch (error: any) {
         this.addTerminalLine('error', `cd: ${error.message || '无法切换目录'}`);
+        
+        // 尝试其他方式
+        if (targetPath.startsWith('/')) {
+          // 已经是绝对路径，尝试直接切换
+          try {
+            const result = await Shell.exec(`cd ${targetPath} && pwd`);
+            this.currentDir = result.trim();
+            this.addTerminalLine('output', this.currentDir);
+          } catch (e: any) {
+            this.addTerminalLine('error', `cd: 无法切换到目录 "${targetPath}"`);
+          }
+        }
       }
     },
     
@@ -580,6 +384,9 @@ fi
         { cmd: 'ls', desc: '当前目录列表' },
         { cmd: 'pwd', desc: '当前路径' },
         { cmd: 'cd / && pwd', desc: '切换到根目录并显示' },
+        { cmd: 'mkdir test_folder_123', desc: '创建测试文件夹' },
+        { cmd: 'ls', desc: '检查文件夹是否创建' },
+        { cmd: 'cd / && pwd', desc: '切换回根目录' },
       ];
       
       for (const test of testCommands) {
@@ -619,7 +426,6 @@ history       显示命令历史
 reset         重置终端
 test          测试Shell功能
 vi <文件>     编辑文本文件 (使用内置编辑器)
-passwd        修改用户密码 (完全模拟Linux交互式)
 
 === 真实Shell命令 ===
 所有Linux命令都可以直接执行：
@@ -627,25 +433,20 @@ passwd        修改用户密码 (完全模拟Linux交互式)
 文件操作:
   ls            列出文件
   ls -la        详细文件列表
-  cd [目录]     切换目录
+  cd [目录]     切换目录（现在真正生效）
   pwd           显示当前目录
   cat [文件]    查看文件
   mkdir [目录]  创建目录
   rm [文件]     删除文件
   touch [文件]  创建文件
-  vi <文件>     编辑文件 (跳转到文本编辑器)
-
-系统管理:
-  passwd        修改密码 (交互式)
-  mount         挂载文件系统
-  df -h         磁盘使用情况
-  free -m       内存使用情况
+  vi <文件>     编辑文件 (会跳转到文本编辑器)
 
 系统信息:
   ps aux        查看进程
+  df -h         磁盘使用情况
+  free -m       内存使用情况
   uname -a      系统信息
   date          日期时间
-  neofetch      系统信息
 
 网络工具:
   ping [主机]   网络连通性测试
@@ -655,11 +456,7 @@ passwd        修改用户密码 (完全模拟Linux交互式)
 安装应用:
   miniapp_cli install [amr文件]  安装应用
 
-注意: 
-- passwd命令完全模拟Linux交互体验
-- 密码输入不会显示明文（显示为*号）
-- 使用openssl生成SHA-512加密密码
-- 自动更新/etc/shadow文件
+注意: 现在目录切换功能已修复，创建的文件夹会在正确的目录中。
 
 状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
 `;
@@ -688,8 +485,6 @@ passwd        修改用户密码 (完全模拟Linux交互式)
       this.historyIndex = -1;
       this.inputText = '';
       this.currentDir = '/';
-      this.passwdInProgress = false;
-      this.passwdStep = 0;
       this.addTerminalLine('system', '终端已重置');
       this.initializeShell();
     },
@@ -697,8 +492,6 @@ passwd        修改用户密码 (完全模拟Linux交互式)
     // 清空终端
     clearTerminal() {
       this.terminalLines = [];
-      this.passwdInProgress = false;
-      this.passwdStep = 0;
       this.addTerminalLine('system', '终端已清空');
     },
     
@@ -751,14 +544,6 @@ passwd        修改用户密码 (完全模拟Linux交互式)
     
     // 处理返回键
     handleBackPress() {
-      if (this.passwdInProgress) {
-        this.addTerminalLine('system', '密码修改已取消');
-        this.passwdInProgress = false;
-        this.passwdStep = 0;
-        this.inputText = '';
-        return;
-      }
-      
       if (this.inputText.trim()) {
         this.inputText = '';
         this.$forceUpdate();
