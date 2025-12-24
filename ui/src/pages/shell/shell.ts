@@ -168,35 +168,33 @@ export default defineComponent({
       // 如果是passwd交互模式，处理密码输入
       if (this.passwdInProgress) {
         await this.handlePasswdInput(command);
-        this.inputText = '';
+        // 注意：这里不清空inputText，让用户在密码输入过程中保留输入
         return;
       }
       
       // 显示命令
       this.addTerminalLine('command', `${this.currentDir} $ ${command}`);
       
-      // 保存到历史记录
+      // 保存到历史记录（除了passwd交互模式）
       if (this.commandHistory[this.commandHistory.length - 1] !== command) {
         this.commandHistory.push(command);
       }
       this.historyIndex = this.commandHistory.length;
+      this.inputText = '';
       
       // 检查Shell状态
       if (!this.shellInitialized || !Shell) {
         this.addTerminalLine('error', '错误: Shell模块未初始化');
-        this.inputText = '';
         return;
       }
       
       // 处理内置命令（包括vi和passwd）
       if (await this.handleBuiltinCommand(command)) {
-        this.inputText = '';
         return;
       }
       
       // 执行命令（包含目录切换处理）
       await this.executeCommandWithDir(command);
-      this.inputText = '';
     },
     
     // 处理内置命令（前端模拟的）
@@ -256,47 +254,60 @@ export default defineComponent({
       const username = args[0] || 'root';
       this.passwdUsername = username;
       
+      // 设置passwd交互模式
+      this.passwdInProgress = true;
+      this.passwdStep = 1;
+      this.newPassword = '';
+      this.confirmPassword = '';
+      
       // 显示passwd交互界面（完全模拟Linux passwd命令）
       this.addTerminalLine('password', `Changing password for ${username}`);
-      this.addTerminalLine('password', `(current) UNIX password: `);
+      this.addTerminalLine('password', `Current password: `);
       
-      // 进入passwd交互模式
-      this.passwdInProgress = true;
-      this.passwdStep = 1; // 步骤1：等待输入当前密码
+      // 重要：这里不清空inputText，让用户可以输入密码
+      // 但是显示提示，让用户知道该输入什么
+      this.inputText = '';
     },
     
     // 处理passwd密码输入
     async handlePasswdInput(input: string) {
-      // 在终端显示星号表示密码输入
-      this.addTerminalLine('password', '*'.repeat(Math.min(input.length, 10)));
+      if (!input.trim()) {
+        // 如果输入为空，显示星号表示密码输入
+        this.addTerminalLine('password', '*'.repeat(10));
+      } else {
+        // 显示星号表示密码输入
+        this.addTerminalLine('password', '*'.repeat(Math.min(input.length, 10)));
+      }
       
       if (this.passwdStep === 1) {
-        // 步骤1：输入当前密码（这里简单跳过验证）
-        // 在实际系统中应该验证当前密码，但我们可以跳过或简单检查
-        
-        this.addTerminalLine('password', `Enter new UNIX password: `);
+        // 步骤1：输入当前密码（这里简单跳过验证，因为我们是root）
+        this.newPassword = ''; // 重置新密码
+        this.addTerminalLine('password', `New password: `);
         this.passwdStep = 2; // 步骤2：等待输入新密码
-        // 这里不需要保存当前密码，因为我们不验证
+        this.inputText = ''; // 清空输入框，准备接收新密码
         
       } else if (this.passwdStep === 2) {
         // 步骤2：输入新密码
-        if (input.length < 6) {
-          this.addTerminalLine('error', 'BAD PASSWORD: it is too short');
-          this.addTerminalLine('password', `Enter new UNIX password: `);
+        if (input.length < 1) {
+          this.addTerminalLine('error', 'Password cannot be empty');
+          this.addTerminalLine('password', `New password: `);
+          this.inputText = '';
           return;
         }
         
         this.newPassword = input;
-        this.addTerminalLine('password', `Retype new UNIX password: `);
+        this.addTerminalLine('password', `Retype new password: `);
         this.passwdStep = 3; // 步骤3：等待确认新密码
+        this.inputText = ''; // 清空输入框，准备确认密码
         
       } else if (this.passwdStep === 3) {
         // 步骤3：确认新密码
         if (input !== this.newPassword) {
           this.addTerminalLine('error', 'Sorry, passwords do not match');
-          this.addTerminalLine('password', `Enter new UNIX password: `);
+          this.addTerminalLine('password', `New password: `);
           this.passwdStep = 2;
           this.newPassword = '';
+          this.inputText = '';
           return;
         }
         
@@ -311,6 +322,7 @@ export default defineComponent({
         this.passwdStep = 0;
         this.newPassword = '';
         this.confirmPassword = '';
+        this.inputText = ''; // 清空输入框，准备接收新命令
       }
     },
     
