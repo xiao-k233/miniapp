@@ -1,4 +1,5 @@
 import { defineComponent } from 'vue';
+import { Shell } from 'langningchen';
 import { showSuccess, showError } from '../../components/ToastMessage';
 
 export default defineComponent({
@@ -6,22 +7,18 @@ export default defineComponent({
     return {
       $page: {} as FalconPage<Record<string, any>>,
 
-      // 屏幕亮度
-      brightness: 50,
-
-      // 亮屏时间
-      brightTimeIndex: 2,
-      brightTimeText: '1 小时',
-
-      // 手电状态
+      shellInitialized: false,
       torchOn: false,
     };
   },
 
-  mounted() {
+  async mounted() {
     // 返回键支持
     this.$page.$npage.setSupportBack(true);
     this.$page.$npage.on('backpressed', this.handleBack);
+
+    // 初始化 Shell（后台）
+    await this.initShell();
   },
 
   beforeDestroy() {
@@ -33,46 +30,54 @@ export default defineComponent({
       this.$page.finish();
     },
 
-    /** 执行 shell（与原 shell 页一致） */
-    execShell(cmd: string) {
+    async initShell() {
       try {
-        $falcon.navTo('shell', { cmd });
-        showSuccess(cmd, 800);
-      } catch (e) {
-        showError('命令执行失败');
+        await Shell.initialize();
+        this.shellInitialized = true;
+      } catch (e: any) {
+        showError('Shell 初始化失败');
       }
     },
 
-    /** 屏幕亮度 */
-    onBrightnessChange(e: any) {
-      const value = e.detail.value;
-      this.brightness = value;
-      this.execShell(`hal-screen set ${value}`);
+    async execShell(cmd: string, successMsg?: string) {
+      if (!this.shellInitialized) {
+        showError('Shell 未初始化');
+        return;
+      }
+
+      try {
+        await Shell.exec(cmd);
+        if (successMsg) {
+          showSuccess(successMsg, 800);
+        }
+      } catch (e: any) {
+        showError(`执行失败: ${cmd}`);
+      }
     },
 
-    /** 亮屏时间 */
-    onBrightTimeChange(e: any) {
-      const index = e.detail.value;
-      this.brightTimeIndex = index;
-
-      const table = [
-        { sec: 30, text: '30 秒' },
-        { sec: 1800, text: '30 分钟' },
-        { sec: 3600, text: '1 小时' },
-        { sec: 7200, text: '2 小时' },
-        { sec: 10800, text: '3 小时' },
-        { sec: 2147483647, text: '无限' },
-      ];
-
-      const item = table[index];
-      this.brightTimeText = item.text;
-      this.execShell(`hal-screen bright_time ${item.sec}`);
+    /* ========== 亮屏时间 ========== */
+    setBrightTime(sec: number, label: string) {
+      this.execShell(
+        `hal-screen bright_time ${sec}`,
+        `亮屏时间：${label}`
+      );
     },
 
-    /** 手电 */
+    /* ========== 屏幕亮度 ========== */
+    setBrightness(value: number) {
+      this.execShell(
+        `hal-screen set ${value}`,
+        `亮度：${value}%`
+      );
+    },
+
+    /* ========== 手电筒 ========== */
     toggleTorch() {
       this.torchOn = !this.torchOn;
-      this.execShell(`led_utils ${this.torchOn ? 1 : 0}`);
-    },
+      this.execShell(
+        `led_utils ${this.torchOn ? 1 : 0}`,
+        this.torchOn ? '手电已打开' : '手电已关闭'
+      );
+    }
   }
 });
