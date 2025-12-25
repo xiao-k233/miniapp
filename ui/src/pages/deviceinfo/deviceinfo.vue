@@ -41,6 +41,14 @@
             <text class="item-value">{{ formatIP(deviceInfo.ipAddress) }}</text>
           </div>
           
+          <!-- 电池电量 -->
+          <div class="info-item">
+            <text class="item-label">电池电量</text>
+            <text class="item-value">
+            {{ deviceInfo.batteryPercent || '未知' }}
+            </text>
+          </div>
+
           <!-- 设备标识 -->
           <div class="info-item">
             <text class="item-label">设备ID</text>
