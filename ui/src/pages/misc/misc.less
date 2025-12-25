@@ -1,24 +1,54 @@
-@import url('../../styles/section.less');
-
 .container {
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  background-color: #000;
+  height: 100%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.label {
-    font-size: 18px;
-    color: #ffffff;
-    margin-bottom: 4px;
+.header {
+  margin-bottom: 4px;
 }
 
-.btn {
-    background-color: #007acc;
-    color: #ffffff;
-    font-size: 18px;
-    text-align: center;
-    height: 36px;
-    line-height: 36px;
-    border-radius: 4px;
+.title {
+  font-size: 22px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.control-card {
+  background-color: #111;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-title {
+  font-size: 15px;
+  color: #aaa;
+}
+
+.value {
+  font-size: 20px;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.toggle-btn {
+  margin-top: 6px;
+  height: 40px;
+  border-radius: 20px;
+  text-align: center;
+  line-height: 40px;
+  font-size: 16px;
+  background-color: #333;
+  color: #ccc;
+}
+
+.toggle-btn.on {
+  background-color: #1e90ff;
+  color: #fff;
 }

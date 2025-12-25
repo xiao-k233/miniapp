@@ -1,28 +1,49 @@
 <template>
-    <div class="container">
-        <section>
-            <text class="section-title">杂项</text>
-        </section>
+  <div class="container">
 
-        <!-- 屏幕亮度 -->
-        <section>
-            <text class="label">屏幕亮度：{{ brightness }}%</text>
-            <slider min="1" max="100" :value="brightness" @change="onBrightnessChange" />
-        </section>
-
-        <!-- 亮屏时间 -->
-        <section>
-            <text class="label">亮屏时间：{{ brightTimeText }}</text>
-            <slider min="0" max="5" step="1" :value="brightTimeIndex" @change="onBrightTimeChange" />
-        </section>
-
-        <!-- 手电 -->
-        <section>
-            <text class="btn" @click="toggleTorch">
-                {{ torchOn ? '关闭手电' : '打开手电' }}
-            </text>
-        </section>
+    <!-- 标题 -->
+    <div class="header">
+      <text class="title">杂项</text>
     </div>
+
+    <!-- 屏幕亮度 -->
+    <div class="control-card">
+      <text class="control-title">屏幕亮度</text>
+      <div class="value">{{ brightness }}%</div>
+      <slider
+        min="1"
+        max="100"
+        :value="brightness"
+        @changing="onBrightnessChange"
+      />
+    </div>
+
+    <!-- 亮屏时间 -->
+    <div class="control-card">
+      <text class="control-title">亮屏时间</text>
+      <div class="value">{{ screenTimeText }}</div>
+      <slider
+        min="0"
+        max="5"
+        step="1"
+        :value="screenTimeIndex"
+        @change="onScreenTimeChange"
+      />
+    </div>
+
+    <!-- 手电 -->
+    <div class="control-card">
+      <text class="control-title">手电筒</text>
+      <div
+        class="toggle-btn"
+        :class="{ on: torchOn }"
+        @click="toggleTorch"
+      >
+        {{ torchOn ? '已开启' : '已关闭' }}
+      </div>
+    </div>
+
+  </div>
 </template>
 
 <style lang="less" scoped>
