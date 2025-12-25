@@ -1,30 +1,27 @@
 import { defineComponent } from 'vue';
-import { Shell } from 'langningchen';
+import { showSuccess, showError } from '../../components/ToastMessage';
 
 export default defineComponent({
   data() {
     return {
       $page: {} as FalconPage<Record<string, any>>,
 
-      shellReady: false,
-
       // 屏幕亮度
       brightness: 50,
 
-      // 亮屏时间 index
-      screenTimeIndex: 2,
-      screenTimeText: '1 小时',
+      // 亮屏时间
+      brightTimeIndex: 2,
+      brightTimeText: '1 小时',
 
-      // 手电
+      // 手电状态
       torchOn: false,
     };
   },
 
-  async mounted() {
+  mounted() {
+    // 返回键支持
     this.$page.$npage.setSupportBack(true);
     this.$page.$npage.on('backpressed', this.handleBack);
-
-    await this.initShell();
   },
 
   beforeDestroy() {
@@ -32,39 +29,31 @@ export default defineComponent({
   },
 
   methods: {
-    async initShell() {
-      if (!Shell || typeof Shell.initialize !== 'function') {
-        console.error('Shell 模块不可用');
-        return;
-      }
-      await Shell.initialize();
-      this.shellReady = true;
+    handleBack() {
+      this.$page.finish();
     },
 
-    async exec(cmd: string) {
-      if (!this.shellReady) return;
+    /** 执行 shell（与原 shell 页一致） */
+    execShell(cmd: string) {
       try {
-        await Shell.exec(cmd);
+        $falcon.navTo('shell', { cmd });
+        showSuccess(cmd, 800);
       } catch (e) {
-        console.error('Shell 执行失败:', cmd, e);
+        showError('命令执行失败');
       }
     },
 
-    /* ================= 屏幕亮度 ================= */
-
+    /** 屏幕亮度 */
     onBrightnessChange(e: any) {
       const value = e.detail.value;
       this.brightness = value;
-
-      // 实时生效
-      this.exec(`hal-screen set ${value}`);
+      this.execShell(`hal-screen set ${value}`);
     },
 
-    /* ================= 亮屏时间 ================= */
-
-    onScreenTimeChange(e: any) {
+    /** 亮屏时间 */
+    onBrightTimeChange(e: any) {
       const index = e.detail.value;
-      this.screenTimeIndex = index;
+      this.brightTimeIndex = index;
 
       const table = [
         { sec: 30, text: '30 秒' },
@@ -76,20 +65,14 @@ export default defineComponent({
       ];
 
       const item = table[index];
-      this.screenTimeText = item.text;
-
-      this.exec(`hal-screen bright_time ${item.sec}`);
+      this.brightTimeText = item.text;
+      this.execShell(`hal-screen bright_time ${item.sec}`);
     },
 
-    /* ================= 手电 ================= */
-
-    async toggleTorch() {
+    /** 手电 */
+    toggleTorch() {
       this.torchOn = !this.torchOn;
-      await this.exec(`led_utils ${this.torchOn ? 1 : 0}`);
+      this.execShell(`led_utils ${this.torchOn ? 1 : 0}`);
     },
-
-    handleBack() {
-      this.$page.finish();
-    }
   }
 });

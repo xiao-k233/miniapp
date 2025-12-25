@@ -1,45 +1,46 @@
 <template>
   <div class="container">
 
-    <!-- 标题 -->
-    <div class="header">
-      <text class="title">杂项</text>
-    </div>
+    <!-- 可滚动区域：只放展示文本 -->
+    <scroller class="scroll-area" scroll-direction="vertical">
+      <div class="header">
+        <text class="title">杂项</text>
+      </div>
 
-    <!-- 屏幕亮度 -->
-    <div class="control-card">
-      <text class="control-title">屏幕亮度</text>
-      <div class="value">{{ brightness }}%</div>
-      <slider
-        min="1"
-        max="100"
-        :value="brightness"
-        @changing="onBrightnessChange"
-      />
-    </div>
+      <div class="info">
+        <text class="info-text">本页面包含屏幕、亮度、电源等系统级功能。</text>
+        <text class="info-text">滑块拖动后立即生效。</text>
+      </div>
 
-    <!-- 亮屏时间 -->
-    <div class="control-card">
-      <text class="control-title">亮屏时间</text>
-      <div class="value">{{ screenTimeText }}</div>
-      <slider
-        min="0"
-        max="5"
-        step="1"
-        :value="screenTimeIndex"
-        @change="onScreenTimeChange"
-      />
-    </div>
+      <!-- 亮屏时间（可以放在 scroller 内，因为是纵向滑动） -->
+      <div class="block">
+        <text class="label">亮屏时间：{{ brightTimeText }}</text>
+        <slider
+          min="0"
+          max="5"
+          step="1"
+          :value="brightTimeIndex"
+          @change="onBrightTimeChange"
+        />
+      </div>
+    </scroller>
 
-    <!-- 手电 -->
-    <div class="control-card">
-      <text class="control-title">手电筒</text>
-      <div
-        class="toggle-btn"
-        :class="{ on: torchOn }"
-        @click="toggleTorch"
-      >
-        {{ torchOn ? '已开启' : '已关闭' }}
+    <!-- 固定操作区：放所有横向交互控件 -->
+    <div class="control-area">
+      <div class="block">
+        <text class="label">屏幕亮度：{{ brightness }}%</text>
+        <slider
+          min="1"
+          max="100"
+          :value="brightness"
+          @change="onBrightnessChange"
+        />
+      </div>
+
+      <div class="block">
+        <text class="btn" @click="toggleTorch">
+          {{ torchOn ? '关闭手电' : '打开手电' }}
+        </text>
       </div>
     </div>
 
