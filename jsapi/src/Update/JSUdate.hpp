@@ -19,6 +19,7 @@
 
 #include "Update.hpp"
 #include <jqutil_v2/jqutil.h>
+#include <Exceptions/AssertFailed.hpp>  // 添加 ASSERT 宏
 #include <memory>
 #include <mutex>
 
@@ -38,40 +39,32 @@ public:
     JSUdate();
     ~JSUdate();
 
-    // 初始化
     void initialize(JQFunctionInfo& info);
     
-    // Manifest 相关
     void setManifestDirectory(JQFunctionInfo& info);
     void getCurrentVersion(JQFunctionInfo& info);
     void getAppName(JQFunctionInfo& info);
     
-    // 发布源设置
     void setReleaseUrl(JQFunctionInfo& info);
     void getReleaseUrl(JQFunctionInfo& info);
     
-    // 下载设置
     void setDownloadDirectory(JQFunctionInfo& info);
     void getDownloadDirectory(JQFunctionInfo& info);
     
-    // 更新检查
     void checkForUpdates(JQAsyncInfo& info);
     void getUpdateInfo(JQAsyncInfo& info);
     
-    // 下载和安装
     void downloadUpdate(JQAsyncInfo& info);
     void installUpdate(JQAsyncInfo& info);
     void updateManifest(JQAsyncInfo& info);
     
-    // 控制
     void cancelDownload(JQFunctionInfo& info);
     void isDownloading(JQFunctionInfo& info);
     
-    // 工具
     void verifyFileIntegrity(JQAsyncInfo& info);
     void cleanupOldVersions(JQFunctionInfo& info);
+    void verifyFileSize(JQAsyncInfo& info);
     
-    // 事件发布
     void publishDownloadProgress(size_t downloaded, size_t total, 
                                 double percentage, const std::string& file_path);
 };
