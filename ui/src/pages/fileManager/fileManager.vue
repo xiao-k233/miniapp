@@ -23,18 +23,18 @@
     <div class="top-bar">
       <div class="path-bar">
         <text class="path-text" @click="goBack" :class="{'disabled': !canGoBack}">
-          {{ canGoBack ? '←' : '' }}
+          返回
         </text>
         <text class="path-text">{{ currentPath }}</text>
-        <text class="path-btn" @click="refreshDirectory">↻</text>
+        <text class="path-btn" @click="refreshDirectory">刷新</text>
       </div>
       
       <div class="action-bar">
-        <text class="action-btn" @click="searchFiles">🔍</text>
-        <text class="action-btn" @click="toggleHiddenFiles">{{ showHiddenFiles ? '👁️' : '👁️‍🗨️' }}</text>
-        <text class="action-btn" @click="createNewFile" :class="{'disabled': !isInUserDisk}">📄</text>
-        <text class="action-btn" @click="createNewDirectory" :class="{'disabled': !isInUserDisk}">📁</text>
-        <text class="action-btn" @click="$falcon.navTo('index', {})">🏠</text>
+        <text class="action-btn" @click="searchFiles">搜索</text>
+        <text class="action-btn" @click="toggleHiddenFiles">{{ showHiddenFiles ? '隐藏' : '显示' }}隐藏文件</text>
+        <text class="action-btn" @click="createNewFile" :class="{'disabled': !isInUserDisk}">新建文件</text>
+        <text class="action-btn" @click="createNewDirectory" :class="{'disabled': !isInUserDisk}">新建目录</text>
+        <text class="action-btn" @click="$falcon.navTo('index', {})">主页</text>
       </div>
     </div>
     
@@ -53,7 +53,7 @@
                class="tree-item" 
                :class="{'selected': selectedTreePath === item.fullPath}"
                @click="selectTreeItem(item)">
-            <text class="tree-icon">{{ getFileIcon(item) }}</text>
+            <text class="tree-icon">📁</text>
             <text class="tree-name">{{ item.name }}</text>
           </div>
           
