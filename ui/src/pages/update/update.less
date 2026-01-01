@@ -1,0 +1,114 @@
+@import url('../../styles/section.less');
+
+.update-status {
+    flex: 1;
+    height: 24px;
+    line-height: 24px;
+    font-size: 16px;
+    padding: 0 8px;
+    border-radius: 3px;
+    text-align: center;
+}
+
+.status-checking {
+    color: #17a2b8;
+    background-color: #0e3d4a;
+}
+
+.status-updated {
+    color: #28a745;
+    background-color: #1a4a2e;
+}
+
+.status-available {
+    color: #ffc107;
+    background-color: #4a3e1a;
+}
+
+.status-error {
+    color: #dc3545;
+    background-color: #4a1e1e;
+}
+
+.version-info {
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px;
+    background-color: #111111;
+    border-radius: 3px;
+    margin-bottom: 10px;
+}
+
+.version-line {
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+}
+
+.version-label {
+    font-size: 14px;
+    color: #888888;
+    min-width: 80px;
+}
+
+.version-value {
+    font-size: 16px;
+    color: #ffffff;
+    flex: 1;
+}
+
+.version-new {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.version-old {
+    color: #ffc107;
+}
+
+.release-notes {
+    flex: 1;
+    min-height: 150px;
+    max-height: 300px;
+    background-color: #111111;
+    color: #cccccc;
+    border: 1px solid #333333;
+    border-radius: 3px;
+    padding: 10px;
+    font-size: 14px;
+    line-height: 20px;
+    margin-bottom: 10px;
+}
+
+.progress-container {
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.progress-text {
+    font-size: 14px;
+    color: #ffffff;
+    text-align: center;
+}
+
+.progress-bar {
+    height: 20px;
+    background-color: #333333;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #007acc;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.file-info {
+    font-size: 14px;
+    color: #888888;
+    text-align: center;
+    margin-top: 5px;
+}
