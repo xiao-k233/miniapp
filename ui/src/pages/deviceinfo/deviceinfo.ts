@@ -19,8 +19,7 @@ interface DeviceInfo {
     used?: string;
     free?: string;
   };
-
-  // ✅ 新增：电池电量百分比
+  
   batteryPercent?: string;
 
   timestamp?: number;
@@ -96,7 +95,7 @@ export default defineComponent({
         const deviceIdResult = await Shell.exec(
           'cat /proc/sys/kernel/random/uuid || cat /etc/machine-id'
         )
-          await this.shell.exec("cat /dev/cmdline");
+          await this.shell.exec("cat /proc/cmdline");
         this.deviceInfo.deviceId = deviceIdResult.trim().substring(0, 32);
       } catch {
         this.deviceInfo.deviceId = '未知';
