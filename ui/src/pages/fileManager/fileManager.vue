@@ -20,6 +20,18 @@
 <template>
   <div>
     <scroller class="container" scroll-direction="vertical" :show-scrollbar="true">
+      <!-- 初始化错误提示 -->
+      <div v-if="showInitError" class="section section-error">
+        <text class="section-title section-title-error">Shell初始化失败</text>
+        <div class="item">
+          <text class="item-text" style="color: #ff4444; white-space: normal;">{{ initErrorMessage }}</text>
+        </div>
+        <div class="operations-grid">
+          <text @click="initializeShell" class="operation-btn operation-btn-primary">重试初始化</text>
+          <text @click="hideInitError" class="operation-btn">关闭提示</text>
+        </div>
+      </div>
+      
       <!-- 路径和操作栏 -->
       <div class="section">
         <text class="section-title">文件管理器</text>
@@ -106,6 +118,18 @@
 
 <style lang="less" scoped>
 @import url('fileManager.less');
+
+/* 添加错误提示样式 */
+.section-error {
+  background-color: #331111;
+  border: 1px solid #ff4444;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.section-title-error {
+  color: #ff4444 !important;
+}
 </style>
 
 <script>
