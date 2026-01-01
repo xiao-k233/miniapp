@@ -1,237 +1,706 @@
-import { defineComponent } from 'vue';
-import { Shell } from 'langningchen';
+// MT管理器风格文件管理器样式
+// 版本: 2.1
+// 描述: 修复显示不全问题，用文字代替符号
 
-// 命令结果接口
-interface CommandResult {
-  label: string;      // 命令显示标签
-  command: string;    // 执行的命令
-  result: string;     // 命令执行结果
-  showRaw?: boolean;  // 是否显示原始输出
+@import url('../../styles/section.less');
+
+/* 文件管理器容器 */
+.mt-file-manager {
+  flex: 1;
+  background-color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
 }
 
-// 设备信息接口
-interface DeviceInfo {
-  ipAddress: CommandResult[];
-  deviceId: CommandResult[];
-  systemInfo: CommandResult[];
-  networkInfo: CommandResult[];
-  storageInfo: CommandResult[];
-  batteryPercent: CommandResult[];
-  
-  timestamp?: number;
-  error?: string;
+/* 顶部操作栏 */
+.top-bar {
+  display: flex;
+  flex-direction: column;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #444;
+  flex-shrink: 0;
 }
 
-export default defineComponent({
-  data() {
-    return {
-      $page: {} as FalconPage<Record<string, any>>,
-      
-      isLoading: true,
-      isRefreshing: false,
-      shellInitialized: false,
-      
-      deviceInfo: {
-        ipAddress: [],
-        deviceId: [],
-        systemInfo: [],
-        networkInfo: [],
-        storageInfo: [],
-        batteryPercent: [],
-      } as DeviceInfo,
-      
-      shellModule: null as any,
-      
-      // 命令配置（可以在这里添加/修改命令）
-      commandConfigs: {
-        ipAddress: [
-          { label: 'WLAN0 IP', command: "ip addr show wlan0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1" },
-          { label: 'ETH0 IP', command: "ip addr show eth0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1" },
-          { label: '所有IP地址', command: "hostname -I" },
-          { label: '公网IP', command: "curl -s ifconfig.me || curl -s ipinfo.io/ip || echo '无法获取'" },
-        ] as CommandResult[],
-        
-        deviceId: [
-          { label: 'UUID', command: 'cat /proc/sys/kernel/random/uuid', showRaw: true },
-          { label: '机器ID', command: 'cat /etc/machine-id', showRaw: true },
-          { label: '序列号', command: 'getprop ro.serialno || echo "N/A"' },
-          { label: '产品UUID', command: 'cat /sys/class/dmi/id/product_uuid 2>/dev/null || echo "N/A"', showRaw: true },
-          { label: '主机名', command: 'hostname' },
-        ] as CommandResult[],
-        
-        systemInfo: [
-          { label: '系统架构', command: 'uname -m' },
-          { label: '内核版本', command: 'uname -r' },
-          { label: '系统名称', command: 'uname -s' },
-          { label: '系统版本', command: 'cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d \'"\' || uname -o' },
-          { label: 'CPU信息', command: 'cat /proc/cpuinfo | grep "model name" | head -1 | cut -d: -f2 | xargs' },
-          { label: '运行时间', command: 'uptime -p || uptime' },
-        ] as CommandResult[],
-        
-        networkInfo: [
-          { label: '网络接口', command: 'ip -4 addr show', showRaw: true },
-          { label: '路由表', command: 'ip route show', showRaw: true },
-          { label: 'DNS配置', command: 'cat /etc/resolv.conf 2>/dev/null || echo "未找到"' },
-          { label: '网络连接', command: 'ss -tunlp 2>/dev/null | head -20' },
-        ] as CommandResult[],
-        
-        storageInfo: [
-          { label: '根目录使用', command: 'df -h /', showRaw: true },
-          { label: '所有挂载点', command: 'df -h | head -20', showRaw: true },
-          { label: '内存使用', command: 'free -h', showRaw: true },
-          { label: '磁盘信息', command: 'lsblk 2>/dev/null | head -20' },
-        ] as CommandResult[],
-        
-        batteryPercent: [
-          { label: '电池容量', command: 'hal-battery 2>/dev/null | grep capacity || cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo "N/A"' },
-          { label: '电池状态', command: 'cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo "未知"' },
-          { label: '电池健康', command: 'cat /sys/class/power_supply/BAT0/health 2>/dev/null || echo "未知"' },
-        ] as CommandResult[],
-      },
-    };
-  },
+.path-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #252525;
+  min-height: 40px;
+}
 
-  mounted() {
-    this.$page.$npage.setSupportBack(true);
-    this.$page.$npage.on("backpressed", this.handleBackPress);
-    this.initializeAndLoad();
-  },
+.path-text {
+  flex: 1;
+  font-size: 14px;
+  color: #e0e0e0;
+  height: 24px;
+  line-height: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 5px;
+}
 
-  beforeDestroy() {
-    this.$page.$npage.off("backpressed", this.handleBackPress);
-  },
+.path-text.disabled {
+  color: #666;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-  methods: {
-    async initializeAndLoad() {
-      this.isLoading = true;
-      try {
-        await this.initializeShell();
-        await this.fetchAllCommands();
-      } catch (error: any) {
-        this.deviceInfo.error = `加载失败: ${error.message || '未知错误'}`;
-      } finally {
-        this.isLoading = false;
-        this.isRefreshing = false;
-      }
-    },
-    
-    async initializeShell() {
-      if (!Shell || typeof Shell.initialize !== 'function') {
-        throw new Error('Shell模块不可用');
-      }
-      await Shell.initialize();
-      this.shellModule = Shell;
-      this.shellInitialized = true;
-    },
-    
-    async fetchAllCommands() {
-      if (!this.shellInitialized) {
-        throw new Error('Shell未初始化');
-      }
+.path-btn {
+  width: 60px;
+  height: 28px;
+  line-height: 28px;
+  text-align: center;
+  font-size: 14px;
+  color: #4a9eff;
+  margin-left: 10px;
+  cursor: pointer;
+  background-color: #3a3a3a;
+  border-radius: 4px;
+}
 
-      this.deviceInfo.timestamp = Date.now();
-      
-      // 并行执行所有命令以提高效率
-      await Promise.all([
-        this.fetchCommands('ipAddress'),
-        this.fetchCommands('deviceId'),
-        this.fetchCommands('systemInfo'),
-        this.fetchCommands('networkInfo'),
-        this.fetchCommands('storageInfo'),
-        this.fetchCommands('batteryPercent'),
-      ]);
-    },
-    
-    async fetchCommands(type: keyof typeof this.commandConfigs) {
-      const results: CommandResult[] = [];
-      for (const config of this.commandConfigs[type]) {
-        try {
-          const result = (await Shell.exec(config.command)).trim();
-          results.push({
-            ...config,
-            result: result || '未获取到',
-          });
-        } catch (error) {
-          results.push({
-            ...config,
-            result: '执行失败',
-          });
-        }
-      }
-      this.deviceInfo[type] = results;
-    },
+.path-btn:hover {
+  background-color: #4a4a4a;
+}
 
-    async refreshInfo() {
-      if (this.isRefreshing) return;
-      this.isRefreshing = true;
-      await this.fetchAllCommands();
-      this.isRefreshing = false;
-    },
+.action-bar {
+  display: flex;
+  flex-direction: row;
+  padding: 8px 12px;
+  background-color: #2d2d2d;
+  flex-wrap: wrap;
+  min-height: 50px;
+}
 
-    handleBackPress() {
-      this.$page.finish();
-    },
-    
-    // 简化的IP格式化方法
-    formatIP(ipResults: CommandResult[]) {
-      // 返回第一个有效的IP结果
-      const validIP = ipResults.find(r => r.result && r.result !== '未获取到' && r.result !== '执行失败');
-      return validIP ? validIP.result : '未获取到IP地址';
-    },
-    
-    // 简化的电池电量获取
-    getBatteryPercent(batteryResults: CommandResult[]) {
-      // 查找电池容量结果
-      const batteryResult = batteryResults.find(r => r.label.includes('容量'));
-      return batteryResult && batteryResult.result !== '未获取到' && batteryResult.result !== '执行失败' 
-        ? batteryResult.result 
-        : '未知';
-    },
-    
-    // 简化的设备ID获取
-    getDeviceId(deviceIdResults: CommandResult[]) {
-      // 优先使用UUID，其次是机器ID
-      const uuidResult = deviceIdResults.find(r => r.label.includes('UUID'));
-      const machineIdResult = deviceIdResults.find(r => r.label.includes('机器ID'));
-      
-      if (uuidResult && uuidResult.result !== '未获取到' && uuidResult.result !== '执行失败') {
-        return uuidResult.result;
-      }
-      if (machineIdResult && machineIdResult.result !== '未获取到' && machineIdResult.result !== '执行失败') {
-        return machineIdResult.result;
-      }
-      return '未知';
-    },
-    
-    // 获取系统信息中的特定值
-    getSystemInfo(systemResults: CommandResult[], key: string) {
-      const result = systemResults.find(r => r.label.includes(key));
-      return result && result.result !== '未获取到' && result.result !== '执行失败' 
-        ? result.result 
-        : '未知';
-    },
-    
-    // 获取存储信息中的特定值
-    getStorageInfo(storageResults: CommandResult[], key: string) {
-      const dfResult = storageResults.find(r => r.label.includes('根目录使用'));
-      if (!dfResult || !dfResult.result) return '未知';
-      
-      try {
-        const lines = dfResult.result.split('\n');
-        if (lines.length > 1) {
-          const parts = lines[1].split(/\s+/);
-          if (parts.length >= 6) {
-            switch (key) {
-              case 'total': return parts[1];
-              case 'used': return parts[2];
-              case 'free': return parts[3];
-            }
-          }
-        }
-      } catch (error) {
-        console.error('解析存储信息失败:', error);
-      }
-      return '未知';
-    },
+.action-btn {
+  min-width: 80px;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  font-size: 14px;
+  color: #e0e0e0;
+  margin-right: 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  background-color: #3a3a3a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0 12px;
+}
+
+.action-btn:last-child {
+  margin-right: 0;
+}
+
+.action-btn.disabled {
+  color: #666;
+  background-color: #2a2a2a;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.action-btn:hover:not(.disabled) {
+  background-color: #4a4a4a;
+}
+
+/* 权限提示 */
+.permission-warning {
+  padding: 8px 12px;
+  background-color: #332200;
+  border-bottom: 1px solid #664400;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  font-size: 12px;
+  color: #ffaa00;
+  text-align: center;
+  display: block;
+}
+
+/* 主布局容器 */
+.main-layout {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 宽屏布局 */
+.main-layout.wide .left-panel {
+  width: 200px;
+  border-right: 1px solid #333;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.main-layout.wide .right-panel {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+/* 窄屏布局 */
+.main-layout.narrow .left-panel {
+  display: none;
+}
+
+.main-layout.narrow .right-panel {
+  width: 100%;
+  display: flex;
+  min-width: 0;
+}
+
+/* 左侧目录树 */
+.left-panel {
+  background-color: #252525;
+}
+
+.directory-tree {
+  flex: 1;
+  min-height: 0;
+}
+
+.tree-title {
+  display: block;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #888;
+  border-bottom: 1px solid #333;
+  font-weight: bold;
+  background-color: #2a2a2a;
+}
+
+.tree-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #2a2a2a;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  min-height: 44px;
+}
+
+.tree-item:hover {
+  background-color: #333;
+}
+
+.tree-item.selected {
+  background-color: #3a3a3a;
+}
+
+.tree-icon {
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  font-size: 16px;
+  color: #ffaa00;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.tree-name {
+  flex: 1;
+  font-size: 14px;
+  color: #e0e0e0;
+  height: 24px;
+  line-height: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.empty-tree {
+  padding: 20px;
+  text-align: center;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 右侧文件列表 */
+.right-panel {
+  background-color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-list {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 搜索状态 */
+.search-status {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #252525;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.search-text {
+  flex: 1;
+  font-size: 14px;
+  color: #4a9eff;
+}
+
+.clear-search {
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  font-size: 16px;
+  color: #888;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.clear-search:hover {
+  color: #ff4444;
+}
+
+/* 统计信息栏 */
+.stats-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #2a2a2a;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.stats-text {
+  flex: 1;
+  font-size: 12px;
+  color: #888;
+}
+
+.layout-toggle {
+  width: 40px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: #e0e0e0;
+  background-color: #3a3a3a;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.layout-toggle:hover {
+  background-color: #4a4a4a;
+}
+
+/* 空列表状态 */
+.empty-list {
+  padding: 40px 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.empty-title {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.empty-description {
+  font-size: 14px;
+  color: #555;
+  display: block;
+}
+
+/* 文件项样式 */
+.file-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #2a2a2a;
+  background-color: #252525;
+  margin: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  min-height: 64px;
+  flex-shrink: 0;
+}
+
+.file-item:hover {
+  background-color: #2a2a2a;
+}
+
+.file-icon-container {
+  width: 40px;
+  height: 40px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.file-icon {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  font-size: 20px;
+}
+
+/* 文件信息区域 */
+.file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.file-name {
+  display: block;
+  font-size: 14px;
+  color: #e0e0e0;
+  height: 20px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.file-details {
+  font-size: 12px;
+  color: #888;
+}
+
+/* 文件操作按钮 */
+.file-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.file-action {
+  min-width: 50px;
+  height: 28px;
+  line-height: 28px;
+  text-align: center;
+  font-size: 12px;
+  color: #e0e0e0;
+  background-color: #3a3a3a;
+  border-radius: 3px;
+  padding: 0 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-action:hover:not(.disabled) {
+  background-color: #4a4a4a;
+}
+
+.file-action.disabled {
+  color: #666;
+  background-color: #2a2a2a;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.file-action.delete {
+  background-color: #5a2a2a;
+  color: #ff6b6b;
+}
+
+.file-action.delete:hover:not(.disabled) {
+  background-color: #6a2a2a;
+}
+
+.file-action.delete.disabled {
+  background-color: #3a2a2a;
+  color: #996b6b;
+}
+
+/* 确认对话框 */
+.confirm-modal {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  width: 300px;
+  background-color: #2d2d2d;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #444;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.modal-title {
+  display: block;
+  font-size: 16px;
+  color: #ffaa00;
+  text-align: center;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.modal-message {
+  display: block;
+  font-size: 14px;
+  color: #e0e0e0;
+  text-align: center;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.modal-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 20px;
+}
+
+.modal-btn {
+  min-width: 80px;
+  height: 36px;
+  line-height: 36px;
+  text-align: center;
+  font-size: 14px;
+  color: #e0e0e0;
+  background-color: #3a3a3a;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-btn:hover {
+  background-color: #4a4a4a;
+}
+
+.modal-btn-danger {
+  background-color: #5a2a2a;
+  color: #ff6b6b;
+}
+
+.modal-btn-danger:hover {
+  background-color: #6a2a2a;
+}
+
+/* 初始化错误提示 */
+.init-error {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  z-index: 1001;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.error-content {
+  width: 320px;
+  background-color: #331111;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #ff4444;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+}
+
+.error-title {
+  display: block;
+  font-size: 16px;
+  color: #ff4444;
+  text-align: center;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.error-message {
+  display: block;
+  font-size: 14px;
+  color: #ff9999;
+  text-align: center;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.error-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 20px;
+}
+
+.error-btn {
+  min-width: 80px;
+  height: 36px;
+  line-height: 36px;
+  text-align: center;
+  font-size: 14px;
+  color: #e0e0e0;
+  background-color: #5a2a2a;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.error-btn:hover {
+  background-color: #6a2a2a;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 768px) {
+  .main-layout.wide .left-panel {
+    display: none;
   }
-});
+  
+  .main-layout.wide .right-panel {
+    width: 100%;
+  }
+  
+  .action-btn {
+    min-width: 70px;
+    height: 30px;
+    line-height: 30px;
+    font-size: 13px;
+    margin-right: 6px;
+    margin-bottom: 4px;
+    padding: 0 8px;
+  }
+  
+  .file-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .file-action {
+    min-width: 40px;
+    height: 24px;
+    line-height: 24px;
+    font-size: 11px;
+    padding: 0 6px;
+  }
+  
+  .path-btn {
+    width: 50px;
+    height: 26px;
+    line-height: 26px;
+    font-size: 13px;
+  }
+}
+
+/* 文件图标颜色 */
+.file-icon.directory {
+  color: #ffaa00;
+}
+
+.file-icon.file {
+  color: #4a9eff;
+}
+
+.file-icon.image {
+  color: #6bff8d;
+}
+
+.file-icon.text {
+  color: #6bd7ff;
+}
+
+.file-icon.executable {
+  color: #ff6b6b;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.file-item {
+  animation: fadeIn 0.3s ease;
+}
+
+.confirm-modal,
+.init-error {
+  animation: fadeIn 0.2s ease;
+}
+
+/* 高亮当前路径 */
+.path-text {
+  font-weight: bold;
+}
+
+/* 禁用状态的视觉反馈 */
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+}
+
+/* 悬停效果优化 */
+@media (hover: hover) {
+  .action-btn:hover:not(.disabled),
+  .file-action:hover:not(.disabled),
+  .modal-btn:hover,
+  .error-btn:hover,
+  .tree-item:hover,
+  .file-item:hover {
+    transform: translateY(-1px);
+  }
+}
