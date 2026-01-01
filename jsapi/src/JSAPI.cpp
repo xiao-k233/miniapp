@@ -1,6 +1,5 @@
 #include <jsmodules/JSCModuleExtension.h>
 #include <jquick_config.h>
-
 #include "AI/JSAI.hpp"
 #include "IME/JSIME.hpp"
 #include "ScanInput/JSScanInput.hpp"
@@ -35,5 +34,5 @@ DEF_MODULE_LOAD_FUNC_EXPORT(langningchen, module_init, exportList)
 
 extern "C" JQUICK_EXPORT void custom_init_jsapis()
 {
-    registerCModuleLoader("Pentool", &langningchen_module_load);
+    registerCModuleLoader("langningchen", &langningchen_module_load);
 }
