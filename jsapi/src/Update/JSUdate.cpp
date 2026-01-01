@@ -16,8 +16,8 @@
 // along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "JSUdate.hpp"
+#include <Exceptions/AssertFailed.hpp>
 #include <iostream>
-#include <nlohmann/json.hpp>
 
 JSUdate::JSUdate() : updateObject(nullptr) {}
 
@@ -136,7 +136,6 @@ void JSUdate::checkForUpdates(JQAsyncInfo& info) {
         UpdateInfo update_info = update->checkForUpdates();
         std::string current_version = update->getCurrentVersion();
         
-        // 修正：使用正确的 Bson 构造方式
         Bson::object result;
         result["version"] = update_info.version;
         result["name"] = update_info.name;
@@ -167,7 +166,6 @@ void JSUdate::getUpdateInfo(JQAsyncInfo& info) {
         std::string update_json_url = info[0].string_value();
         UpdateInfo update_info = update->getUpdateInfo(update_json_url);
         
-        // 修正：使用正确的 Bson 构造方式
         Bson::object result;
         result["version"] = update_info.version;
         result["name"] = update_info.name;
@@ -192,7 +190,6 @@ void JSUdate::downloadUpdate(JQAsyncInfo& info) {
         ASSERT(update != nullptr);
         ASSERT(info.Length() == 1);
         
-        // 解析 UpdateInfo 对象
         JSContext* ctx = info.GetContext();
         JQObject js_obj(ctx, info[0]);
         
@@ -208,7 +205,6 @@ void JSUdate::downloadUpdate(JQAsyncInfo& info) {
         update_info.release_notes = js_obj.getString("release_notes");
         update_info.manifest_path = js_obj.getString("manifest_path");
         
-        // 创建进度回调
         DownloadCallback progress_callback = [this](const DownloadProgress& progress) {
             publishDownloadProgress(progress.downloaded_bytes, 
                                   progress.total_bytes, 
@@ -244,7 +240,6 @@ void JSUdate::updateManifest(JQAsyncInfo& info) {
         ASSERT(update != nullptr);
         ASSERT(info.Length() == 1);
         
-        // 解析 UpdateInfo 对象
         JSContext* ctx = info.GetContext();
         JQObject js_obj(ctx, info[0]);
         
@@ -303,6 +298,23 @@ void JSUdate::verifyFileIntegrity(JQAsyncInfo& info) {
     }
 }
 
+void JSUdate::verifyFileSize(JQAsyncInfo& info) {
+    try {
+        Update* update = getUpdateObject();
+        ASSERT(update != nullptr);
+        ASSERT(info.Length() == 2);
+        
+        JSContext* ctx = info.GetContext();
+        std::string file_path = JQString(ctx, info[0]).getString();
+        size_t expected_size = JQNumber(ctx, info[1]).getInt64();
+        
+        bool valid = update->verifyFileSize(file_path, expected_size);
+        info.post(valid);
+    } catch (const std::exception& e) {
+        info.postError(e.what());
+    }
+}
+
 void JSUdate::cleanupOldVersions(JQFunctionInfo& info) {
     try {
         Update* update = getUpdateObject();
@@ -320,7 +332,6 @@ void JSUdate::cleanupOldVersions(JQFunctionInfo& info) {
 
 void JSUdate::publishDownloadProgress(size_t downloaded, size_t total, 
                                      double percentage, const std::string& file_path) {
-    // 修正：使用正确的 Bson 构造方式
     Bson::object progress;
     progress["downloaded"] = static_cast<int64_t>(downloaded);
     progress["total"] = static_cast<int64_t>(total);
@@ -338,35 +349,22 @@ JSValue createUpdate(JQModuleEnv* env) {
     });
 
     tpl->SetProtoMethod("initialize", &JSUdate::initialize);
-    
-    // Manifest 相关
     tpl->SetProtoMethod("setManifestDirectory", &JSUdate::setManifestDirectory);
     tpl->SetProtoMethod("getCurrentVersion", &JSUdate::getCurrentVersion);
     tpl->SetProtoMethod("getAppName", &JSUdate::getAppName);
-    
-    // 发布源设置
     tpl->SetProtoMethod("setReleaseUrl", &JSUdate::setReleaseUrl);
     tpl->SetProtoMethod("getReleaseUrl", &JSUdate::getReleaseUrl);
-    
-    // 下载设置
     tpl->SetProtoMethod("setDownloadDirectory", &JSUdate::setDownloadDirectory);
     tpl->SetProtoMethod("getDownloadDirectory", &JSUdate::getDownloadDirectory);
-    
-    // 更新检查
     tpl->SetProtoMethodPromise("checkForUpdates", &JSUdate::checkForUpdates);
     tpl->SetProtoMethodPromise("getUpdateInfo", &JSUdate::getUpdateInfo);
-    
-    // 下载和安装
     tpl->SetProtoMethodPromise("downloadUpdate", &JSUdate::downloadUpdate);
     tpl->SetProtoMethodPromise("installUpdate", &JSUdate::installUpdate);
     tpl->SetProtoMethodPromise("updateManifest", &JSUdate::updateManifest);
-    
-    // 控制
     tpl->SetProtoMethod("cancelDownload", &JSUdate::cancelDownload);
     tpl->SetProtoMethod("isDownloading", &JSUdate::isDownloading);
-    
-    // 工具
     tpl->SetProtoMethodPromise("verifyFileIntegrity", &JSUdate::verifyFileIntegrity);
+    tpl->SetProtoMethodPromise("verifyFileSize", &JSUdate::verifyFileSize);
     tpl->SetProtoMethod("cleanupOldVersions", &JSUdate::cleanupOldVersions);
 
     JSUdate::InitTpl(tpl);
