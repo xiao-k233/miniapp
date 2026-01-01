@@ -51,6 +51,9 @@ export default defineComponent({
         FileManager() {
             $falcon.navTo("fileManager", {});
         },
+        Update() {
+            $falcon.navTo("update", {});
+        },
 
         async shelldebug() {
             try {

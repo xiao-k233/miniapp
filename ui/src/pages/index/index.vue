@@ -28,6 +28,7 @@
             <div class="item"><text class="item-text" @click="PenTerm">PenTerm</text></div>
             <div class="item"><text class="item-text" @click="Deviceinfo">设备信息</text></div>
             <div class="item"><text class="item-text" @click="Misc">杂项</text></div>
+            <div class="item"><text class="item-text" @click="Update">Update</text></div>
             <div class="item"><text class="item-text" @click="shelldebug">更新软件</text></div>            
         </div>
     </scroller>
