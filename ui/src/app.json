@@ -2,6 +2,7 @@
   "pages": {
     "index": "pages/index/index.vue",
     "ai": "pages/ai/ai.vue",
+    "update": "pages/update/update.vue",
     "shell": "pages/shell/shell.vue",
     "softKeyboard": "pages/softKeyboard/softKeyboard.vue",
     "aiSettings": "pages/aiSettings/aiSettings.vue",
