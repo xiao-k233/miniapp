@@ -81,7 +81,7 @@ export default defineComponent({
 
       this.deviceInfo = { timestamp: Date.now() };
 
-      /* ========== 1. IP 地址（原样保留） ========== */
+      /* ========== IP 地址 ========== */
       try {
         const ipResult = await Shell.exec(
           "ip addr show wlan0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1"
@@ -91,17 +91,18 @@ export default defineComponent({
         this.deviceInfo.ipAddress = '获取失败';
       }
 
-      /* ========== 2. 设备 ID ========== */
+      /* ========== 设备 ID ========== */
       try {
         const deviceIdResult = await Shell.exec(
           'cat /proc/sys/kernel/random/uuid || cat /etc/machine-id'
-        );
+        )
+          await this.shell.exec("cat /dev/cmdline");
         this.deviceInfo.deviceId = deviceIdResult.trim().substring(0, 32);
       } catch {
         this.deviceInfo.deviceId = '未知';
       }
 
-      /* ========== 3. 系统信息 ========== */
+      /* ========== 系统信息 ========== */
       try {
         const model = (await Shell.exec('uname -m')).trim();
         const version = (await Shell.exec('uname -r')).trim();
@@ -111,7 +112,7 @@ export default defineComponent({
         this.deviceInfo.systemInfo = { model: '未知', version: '未知', kernel: '未知' };
       }
 
-      /* ========== 4. 网络接口 ========== */
+      /* ========== 网络接口 ========== */
       try {
         this.deviceInfo.networkInfo = {
           interfaces: (await Shell.exec('ip -4 addr show')).trim()
@@ -120,7 +121,7 @@ export default defineComponent({
         this.deviceInfo.networkInfo = { interfaces: '获取失败' };
       }
 
-      /* ========== 5. 存储信息 ========== */
+      /* ========== 存储信息 ========== */
       try {
         const df = await Shell.exec('df -h /');
         const parts = df.split('\n')[1].split(/\s+/);
@@ -133,7 +134,7 @@ export default defineComponent({
         this.deviceInfo.storageInfo = { total: '未知', used: '未知', free: '未知' };
       }
 
-      /* ========== 6. ✅ 电池电量（新增） ========== */
+      /* ========== 电池电量 ========== */
       try {
         const batteryOutput = await Shell.exec('hal-battery');
         const match = batteryOutput.match(/capacity:(\d+)/);
