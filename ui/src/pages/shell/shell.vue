@@ -45,17 +45,8 @@
       <div class="input-container" @click="openKeyboard">
         <text class="input-text">{{ inputText || '点击输入命令...' }}</text>
       </div>
-      
-      <div class="action-buttons">
-        <text 
-          class="btn btn-execute"
-          :class="{ 'btn-disabled': !canExecute }"
-          @click="executeCommand"
-        >
-          执行
-        </text>
-      </div>
-     <div class="item"><text class="btn btn-clear" @click="clearTerminal">清空</text></div>
+     <div class="action-buttons"><text class="btn btn-execute" @click="executeCommand">发送</text></div>
+     <div class="action-buttons"><text class="btn btn-clear" @click="clearTerminal">清空</text></div>
     </div>
   </div>
 </template>
