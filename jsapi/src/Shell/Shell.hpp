@@ -1,18 +1,31 @@
 #pragma once
+
 #include <string>
 #include <functional>
+#include <memory>
+#include <cstdio>
+#include <array>
+#include <stdexcept>
+#include <thread>
+#include <utility>
 
-class Shell {
+class Shell
+{
 public:
-    // 执行命令，返回输出
+    Shell() = default;
+    ~Shell() = default;
+
+    // 同步执行命令
     std::string exec(const std::string& cmd);
-
-    // 执行命令，带环境变量
+    
+    // 带环境变量的同步执行
     std::string exec(const std::string& cmd, const std::string& env);
-
-    // 执行命令，返回输出和状态码
+    
+    // 带状态码的执行
     std::pair<std::string, int> execWithStatus(const std::string& cmd);
-
-    // 异步执行命令，输出通过回调返回
-    void execAsync(const std::string& cmd, std::function<void(const std::string&)> onOutput);
+    
+    // 异步执行（带回调）
+    static void execAsync(const std::string& cmd, 
+                         std::function<void(const std::string&)> onSuccess = nullptr,
+                         std::function<void(const std::string&)> onError = nullptr);
 };
