@@ -62,7 +62,7 @@
             <div v-if="releaseNotes" class="section">
                 <text class="section-title">更新说明</text>
                 <scroller class="release-notes" scroll-direction="vertical">
-                    <text>{{ releaseNotes }}</text>
+                    <text style="color: #ffffff;">{{ releaseNotes }}</text>
                 </scroller>
             </div>
 
