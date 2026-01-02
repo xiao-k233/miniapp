@@ -31,6 +31,42 @@ const CURRENT_VERSION = '1.2.4';
 // 设备型号（根据设备设置）
 const DEVICE_MODEL = 'a6p'; // 例如: a6p, a6x, a5, c7 等
 
+// 镜像源配置
+const MIRRORS = [
+    {
+        id: 'none',
+        name: '不使用镜像 (直接下载)',
+        enabled: false,
+        urlPattern: '{url}',
+        apiPattern: '{url}',
+        testUrl: 'https://github.com'
+    },
+    {
+        id: 'ghproxy',
+        name: 'ghproxy.net (推荐)',
+        enabled: true,
+        urlPattern: 'https://ghproxy.net/{url}',
+        apiPattern: '{url}',
+        testUrl: 'https://ghproxy.net/https://github.com'
+    },
+    {
+        id: 'fastgit',
+        name: 'FastGit',
+        enabled: true,
+        urlPattern: 'https://download.fastgit.org/{path}',
+        apiPattern: 'https://api.fastgit.org/{path}',
+        testUrl: 'https://download.fastgit.org'
+    },
+    {
+        id: 'ghproxycn',
+        name: 'ghproxy.com',
+        enabled: true,
+        urlPattern: 'https://ghproxy.com/{url}',
+        apiPattern: '{url}',
+        testUrl: 'https://ghproxy.com/https://github.com'
+    }
+];
+
 const update = defineComponent({
     data() {
         return {
@@ -55,6 +91,12 @@ const update = defineComponent({
             
             // Shell状态
             shellInitialized: false,
+            
+            // 镜像源设置
+            mirrors: MIRRORS,
+            selectedMirror: 'ghproxy', // 默认使用ghproxy镜像
+            useMirror: true, // 是否使用镜像
+            currentMirror: MIRRORS.find(m => m.id === 'ghproxy') || MIRRORS[0]
         };
     },
 
@@ -340,13 +382,26 @@ const update = defineComponent({
                 const timestamp = Date.now();
                 this.downloadPath = `/userdisk/miniapp_${this.deviceModel}_v${this.latestVersion}_${timestamp}.amr`;
                 
-                console.log('下载URL:', this.downloadUrl);
+                // 根据是否使用镜像源构建下载URL
+                let finalDownloadUrl = this.downloadUrl;
+                if (this.useMirror && this.currentMirror.enabled) {
+                    if (this.currentMirror.urlPattern.includes('{url}')) {
+                        finalDownloadUrl = this.currentMirror.urlPattern.replace('{url}', this.downloadUrl);
+                    } else if (this.currentMirror.urlPattern.includes('{path}')) {
+                        const urlObj = new URL(this.downloadUrl);
+                        const path = urlObj.pathname + urlObj.search;
+                        finalDownloadUrl = this.currentMirror.urlPattern.replace('{path}', path);
+                    }
+                }
+                
+                console.log('下载URL:', finalDownloadUrl);
                 console.log('保存到:', this.downloadPath);
                 console.log('设备型号:', this.deviceModel);
                 console.log('目标版本:', this.latestVersion);
+                console.log('使用镜像:', this.useMirror ? this.currentMirror.name : '无');
                 
                 // 使用curl下载文件
-                const downloadCmd = `curl -k -L "${this.downloadUrl}" -o "${this.downloadPath}"`;
+                const downloadCmd = `curl -k -L "${finalDownloadUrl}" -o "${this.downloadPath}"`;
                 console.log('执行命令:', downloadCmd);
                 
                 await Shell.exec(downloadCmd);
@@ -429,6 +484,40 @@ const update = defineComponent({
                 
                 showInfo(`手动安装 ${this.deviceModel} 型号的更新:`);
                 showInfo(`miniapp_cli install ${this.downloadPath}`);
+            } finally {
+                hideLoading();
+            }
+        },
+
+        // 镜像源变更处理
+        onMirrorChange() {
+            const mirror = this.mirrors.find(m => m.id === this.selectedMirror);
+            if (mirror) {
+                this.currentMirror = mirror;
+                this.useMirror = mirror.enabled;
+                showInfo(`已切换到镜像源: ${mirror.name}`);
+            }
+        },
+
+        // 测试镜像源
+        async testMirror() {
+            if (!this.shellInitialized || !Shell) {
+                showError('Shell模块未初始化');
+                return;
+            }
+            
+            try {
+                showLoading(`正在测试镜像源: ${this.currentMirror.name}...`);
+                
+                const testUrl = this.currentMirror.testUrl;
+                const testCmd = `curl -s -k --connect-timeout 10 "${testUrl}" | head -c 100`;
+                
+                await Shell.exec(testCmd);
+                
+                showSuccess(`镜像源 ${this.currentMirror.name} 连接正常`);
+            } catch (error: any) {
+                console.error('镜像源测试失败:', error);
+                showError(`镜像源 ${this.currentMirror.name} 连接失败，请尝试其他镜像源`);
             } finally {
                 hideLoading();
             }

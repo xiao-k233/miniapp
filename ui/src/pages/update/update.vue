@@ -36,6 +36,29 @@
                 </div>
             </div>
 
+            <!-- 镜像源设置 -->
+            <div class="section">
+                <text class="section-title">下载设置</text>
+                
+                <div class="mirror-settings">
+                    <div class="item">
+                        <text class="item-text">镜像源:</text>
+                        <select v-model="selectedMirror" class="mirror-select" @change="onMirrorChange">
+                            <option v-for="mirror in mirrors" :key="mirror.id" :value="mirror.id">
+                                {{ mirror.name }}
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <div class="mirror-info">
+                        <text class="mirror-label">当前镜像: {{ currentMirror.name }}</text>
+                        <text :class="'mirror-status ' + (useMirror ? 'mirror-status-active' : 'mirror-status-disabled')">
+                            {{ useMirror ? '镜像加速已启用' : '镜像加速未启用' }}
+                        </text>
+                    </div>
+                </div>
+            </div>
+
             <!-- 版本信息 -->
             <div v-if="latestVersion" class="section">
                 <text class="section-title">版本信息</text>
@@ -81,6 +104,7 @@
                 <div class="operations-grid">
                     <text @click="openGitHub" class="operation-btn operation-btn-info">GitHub页面</text>
                     <text @click="testNetwork" class="operation-btn operation-btn-info">测试网络</text>
+                    <text @click="testMirror" class="operation-btn operation-btn-info">测试镜像源</text>
                     <text @click="cleanup" class="operation-btn operation-btn-warning">清理临时文件</text>
                     <text @click="$page.finish()" class="operation-btn">返回</text>
                 </div>
@@ -91,10 +115,11 @@
                 <text class="section-title">使用说明</text>
                 <text style="font-size: 14px; color: #888888; line-height: 20px; padding: 5px;">
                     1. 点击"检查更新"按钮获取最新版本信息
-                    2. 如果有新版本，点击"下载并安装更新"按钮
-                    3. 下载完成后会自动安装
-                    4. 安装完成后请重启应用
-                    5. 如果自动更新失败，可以手动下载安装
+                    2. 选择镜像源可以加速下载
+                    3. 如果有新版本，点击"下载并安装更新"按钮
+                    4. 下载完成后会自动安装
+                    5. 安装完成后请重启应用
+                    6. 如果自动更新失败，可以手动下载安装
                 </text>
             </div>
         </scroller>
