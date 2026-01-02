@@ -10,6 +10,7 @@ on:
 env:
   TOOLCHAIN_URL: https://github.com/penosext/Cloudpan/releases/download/toolchains/armv7-eabihf--glibc--stable-2018.11-1.tar.bz2
   VERSIONINFO_URL: https://github.com/penosext/Cloudpan/releases/download/PenS6Pro/S6PversionInfo.tar.gz
+  DEVICE:  s6p
 
 jobs:
   build:
@@ -35,6 +36,7 @@ jobs:
 
       - name: Build
         run: |
+          sed -i "s/const DEVICE_MODEL = '.*';/const DEVICE_MODEL = '\${DEVICE}';/" ./ui/src/pages/update/update.ts
           cd ./ui
           sed -i "s/commonjs(),/commonjs(),require('@rollup\/plugin-typescript')(),/g" ./node_modules/aiot-vue-cli/src/libs/rollup.config.js
           sed -i "s/compiler.parseComponent(content, { pad: 'line' })/compiler.parse(content, { pad: 'line' }).descriptor/g" ./node_modules/aiot-vue-cli/web-loaders/falcon-vue-loader/lib/parser.js
