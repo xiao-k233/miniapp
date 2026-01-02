@@ -16,6 +16,7 @@
 // along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
     
 import { defineComponent } from 'vue';
+
 export type indexOptions = {};
 
     methods: {
