@@ -83,8 +83,9 @@
                           class="btn-disabled">正在下载...</text>
                     <text v-else-if="status === 'installing'" 
                           class="btn-disabled">正在安装...</text>
-                    <text v-else-if="status === 'updated'" 
+                    <text v-else-if="status === 'updated' && latestVersion" 
                           class="btn-disabled">已是最新版本</text>
+                    <text v-else class="btn-disabled">暂无更新</text>
                 </div>
             </div>
             

@@ -58,11 +58,13 @@ const update = defineComponent({
         };
     },
 
-    async mounted() {
+    mounted() {
         // 延迟初始化，避免立即执行导致问题
+        console.log('页面加载完成');
         setTimeout(() => {
+            console.log('开始初始化Shell...');
             this.initializeShell();
-        }, 500);
+        }, 1000);
     },
 
     computed: {
@@ -104,69 +106,101 @@ const update = defineComponent({
     },
 
     methods: {
-        // 初始化Shell
-        async initializeShell() {
+        // 初始化Shell - 更安全的版本
+        initializeShell() {
             try {
-                console.log('开始初始化Shell...');
+                console.log('检查Shell对象...');
                 
                 // 检查Shell对象是否存在
-                if (!Shell) {
-                    console.error('Shell对象不存在');
+                if (typeof Shell === 'undefined') {
+                    console.error('Shell对象未定义');
                     this.shellInitialized = false;
+                    // 仍然尝试检查更新，但可能失败
+                    setTimeout(() => {
+                        this.checkForUpdates();
+                    }, 2000);
                     return;
                 }
                 
-                // 检查initialize方法是否存在
-                if (typeof Shell.initialize !== 'function') {
-                    console.error('Shell.initialize方法不存在');
+                // 如果有initialize方法，尝试初始化
+                if (Shell.initialize && typeof Shell.initialize === 'function') {
+                    console.log('调用Shell.initialize()...');
+                    Shell.initialize().then(() => {
+                        this.shellInitialized = true;
+                        console.log('Shell初始化成功');
+                        this.checkForUpdates();
+                    }).catch((error: any) => {
+                        console.warn('Shell初始化失败:', error);
+                        this.shellInitialized = false;
+                        // 仍然尝试检查更新
+                        setTimeout(() => {
+                            this.checkForUpdates();
+                        }, 2000);
+                    });
+                } else {
+                    console.warn('Shell.initialize方法不存在，直接检查更新');
                     this.shellInitialized = false;
-                    return;
+                    setTimeout(() => {
+                        this.checkForUpdates();
+                    }, 2000);
                 }
-                
-                // 尝试初始化Shell
-                await Shell.initialize();
-                this.shellInitialized = true;
-                console.log('Shell初始化成功');
-                
-                // 自动检查更新
-                setTimeout(() => {
-                    this.checkForUpdates();
-                }, 1000);
                 
             } catch (error: any) {
-                console.error('Shell初始化失败:', error);
+                console.error('初始化Shell时发生错误:', error);
                 this.shellInitialized = false;
-                console.warn('Shell模块初始化失败，部分功能可能受限');
+                // 仍然尝试检查更新
+                setTimeout(() => {
+                    this.checkForUpdates();
+                }, 2000);
             }
         },
 
         // 检查更新
         async checkForUpdates() {
-            // 检查Shell是否初始化
-            if (!this.shellInitialized) {
-                showError('Shell模块未初始化，请稍后重试');
-                return;
-            }
-            
             this.status = 'checking';
             this.errorMessage = '';
+            this.latestVersion = ''; // 清空最新版本，避免显示旧数据
             
             try {
                 showLoading('正在检查更新...');
+                console.log('开始检查更新...');
                 
                 // 使用GitHub API获取最新版本
                 const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
-                console.log('检查更新，URL:', apiUrl);
+                console.log('检查更新URL:', apiUrl);
                 
-                // 简单的curl命令
-                const result = await Shell.exec(`curl -s -k "${apiUrl}"`);
+                let result = '';
+                
+                // 如果Shell已初始化，使用Shell.exec
+                if (this.shellInitialized && Shell && Shell.exec) {
+                    try {
+                        result = await Shell.exec(`curl -s -k "${apiUrl}"`);
+                        console.log('Shell.exec结果长度:', result.length);
+                    } catch (execError) {
+                        console.warn('Shell.exec失败:', execError);
+                        // 尝试直接fetch
+                        result = await this.fetchWithTimeout(apiUrl, 5000);
+                    }
+                } else {
+                    // 如果没有Shell，尝试直接fetch
+                    result = await this.fetchWithTimeout(apiUrl, 5000);
+                }
+                
+                console.log('获取到的数据:', result.substring(0, 200) + '...');
                 
                 if (!result || result.trim() === '') {
                     throw new Error('无法获取更新信息');
                 }
                 
                 // 解析JSON
-                const data = JSON.parse(result);
+                let data;
+                try {
+                    data = JSON.parse(result);
+                    console.log('解析JSON成功，tag_name:', data.tag_name);
+                } catch (parseError) {
+                    console.error('JSON解析失败:', parseError);
+                    throw new Error('数据格式错误');
+                }
                 
                 if (data.tag_name) {
                     this.latestVersion = data.tag_name;
@@ -174,6 +208,8 @@ const update = defineComponent({
                     
                     // 查找匹配设备型号的文件
                     if (data.assets && Array.isArray(data.assets)) {
+                        console.log('找到', data.assets.length, '个资源文件');
+                        
                         const expectedFilename = `miniapp_${this.deviceModel}_v${this.latestVersion}.amr`;
                         
                         // 查找完全匹配的文件
@@ -201,8 +237,13 @@ const update = defineComponent({
                             this.downloadUrl = matchedAsset.browser_download_url;
                             this.fileSize = matchedAsset.size || 0;
                             console.log(`找到匹配的文件: ${matchedAsset.name}`);
+                        } else {
+                            console.warn('未找到.amr文件');
                         }
                     }
+                    
+                    console.log('当前版本:', this.currentVersion, '最新版本:', this.latestVersion);
+                    console.log('hasUpdate:', this.hasUpdate);
                     
                     if (this.hasUpdate) {
                         this.status = 'available';
@@ -223,6 +264,37 @@ const update = defineComponent({
             } finally {
                 hideLoading();
             }
+        },
+
+        // 备用方法：使用fetch获取数据
+        async fetchWithTimeout(url: string, timeout: number): Promise<string> {
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    reject(new Error('请求超时'));
+                }, timeout);
+                
+                // 使用XMLHttpRequest替代fetch
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.timeout = timeout;
+                xhr.onload = () => {
+                    clearTimeout(timer);
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(xhr.responseText);
+                    } else {
+                        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+                    }
+                };
+                xhr.onerror = () => {
+                    clearTimeout(timer);
+                    reject(new Error('网络错误'));
+                };
+                xhr.ontimeout = () => {
+                    clearTimeout(timer);
+                    reject(new Error('请求超时'));
+                };
+                xhr.send();
+            });
         },
 
         // 比较版本号
@@ -264,6 +336,7 @@ const update = defineComponent({
                 
                 // 下载文件
                 const downloadCmd = `curl -k -L "${this.downloadUrl}" -o "${this.downloadPath}"`;
+                console.log('执行下载命令:', downloadCmd);
                 await Shell.exec(downloadCmd);
                 
                 // 检查文件是否下载成功
@@ -301,6 +374,7 @@ const update = defineComponent({
                 
                 // 执行安装命令
                 const installCmd = `miniapp_cli install "${this.downloadPath}"`;
+                console.log('执行安装命令:', installCmd);
                 const result = await Shell.exec(installCmd);
                 console.log('安装结果:', result);
                 
