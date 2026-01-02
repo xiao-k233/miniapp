@@ -19,6 +19,13 @@ import { defineComponent } from 'vue';
 
 export type indexOptions = {};
 
+const index = defineComponent({
+    data() {
+        return {
+            $page: {} as FalconPage<indexOptions>,
+        };
+    },
+    
     methods: {
         openAi() {
             $falcon.navTo("ai", {});
