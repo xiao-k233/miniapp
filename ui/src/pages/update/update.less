@@ -150,56 +150,37 @@
     min-width: 60px;
 }
 
-.mirror-slider {
+.mirror-slider-scroller {
     flex: 1;
-    height: 30px;
-}
-
-.mirror-slider-track {
-    flex: 1;
-    height: 4px;
-    background-color: #333333;
-    border-radius: 2px;
-    position: relative;
-}
-
-.mirror-slider-thumb {
-    width: 20px;
-    height: 20px;
-    background-color: #007acc;
-    border-radius: 50%;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: pointer;
-}
-
-.mirror-buttons-container {
-    flex-direction: column;
-    gap: 5px;
-}
-
-.mirror-buttons-row {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 5px;
-}
-
-.mirror-btn {
-    flex: 1;
-    min-width: 80px;
-    height: 28px;
-    font-size: 12px;
-    line-height: 28px;
-    text-align: center;
-    border-radius: 3px;
-    padding: 0 5px;
+    height: 40px;
     background-color: #222222;
-    color: #888888;
+    border-radius: 5px;
     border: 1px solid #333333;
+    padding: 0 5px;
 }
 
-.mirror-btn-selected {
+.mirror-slider-content {
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 0;
+}
+
+.mirror-slider-item {
+    flex-shrink: 0;
+    width: 80px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    border-radius: 4px;
+    background-color: #333333;
+    color: #888888;
+    font-size: 12px;
+    margin-right: 5px;
+    border: 1px solid #444444;
+}
+
+.mirror-slider-item-selected {
     background-color: #007acc;
     color: #ffffff;
     border-color: #007acc;

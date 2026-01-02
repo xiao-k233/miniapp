@@ -41,28 +41,21 @@
                 <text class="section-title">下载设置</text>
                 
                 <div class="mirror-settings">
-                    <!-- 滑动栏 -->
+                    <!-- 滑动栏容器 -->
                     <div class="mirror-slider-container">
                         <text class="mirror-slider-label">镜像源:</text>
-                        <div class="mirror-slider">
-                            <div class="mirror-slider-track" @click="onSliderClick">
-                                <div class="mirror-slider-thumb" :style="{ left: sliderPosition + '%' }"></div>
+                        <scroller class="mirror-slider-scroller" scroll-direction="horizontal" :show-scrollbar="false">
+                            <div class="mirror-slider-content">
+                                <text 
+                                    v-for="mirror in mirrors" 
+                                    :key="mirror.id"
+                                    :class="'mirror-slider-item ' + (selectedMirror === mirror.id ? 'mirror-slider-item-selected' : '')"
+                                    @click="selectMirror(mirror.id)"
+                                >
+                                    {{ mirror.buttonName }}
+                                </text>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 镜像源按钮 -->
-                    <div class="mirror-buttons-container">
-                        <div class="mirror-buttons-row">
-                            <text 
-                                v-for="(mirror, index) in visibleMirrors" 
-                                :key="mirror.id"
-                                :class="'mirror-btn ' + (selectedMirror === mirror.id ? 'mirror-btn-selected' : '')"
-                                @click="selectMirror(mirror.id)"
-                            >
-                                {{ mirror.shortName || mirror.name }}
-                            </text>
-                        </div>
+                        </scroller>
                     </div>
                     
                     <!-- 状态信息 -->
@@ -131,7 +124,7 @@
                 <text class="section-title">使用说明</text>
                 <text style="font-size: 14px; color: #888888; line-height: 20px; padding: 5px;">
                     1. 点击"检查更新"按钮获取最新版本信息
-                    2. 滑动选择或点击按钮切换镜像源
+                    2. 左右滑动选择镜像源，点击按钮切换
                     3. 如果有新版本，点击"下载并安装更新"按钮
                     4. 下载完成后会自动安装
                     5. 安装完成后请重启应用
