@@ -30,6 +30,42 @@
     background-color: #4a1e1e;
 }
 
+.version-info {
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px;
+    background-color: #111111;
+    border-radius: 3px;
+    margin-bottom: 10px;
+}
+
+.version-line {
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+}
+
+.version-label {
+    font-size: 14px;
+    color: #888888;
+    min-width: 80px;
+}
+
+.version-value {
+    font-size: 16px;
+    color: #ffffff;
+    flex: 1;
+}
+
+.version-new {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.version-old {
+    color: #ffc107;
+}
+
 .release-notes {
     flex: 1;
     min-height: 150px;
@@ -44,80 +80,85 @@
     margin-bottom: 10px;
 }
 
-/* 按钮样式 - 使用系统默认样式 */
-.btn-check {
-    padding: 8px 16px;
-    background-color: #007acc;
-    color: white;
-    border-radius: 4px;
-    font-size: 14px;
-    text-align: center;
-    margin: 0 5px;
-}
-
-.btn-update {
-    padding: 8px 16px;
-    background-color: #28a745;
-    color: white;
-    border-radius: 4px;
-    font-size: 14px;
-    text-align: center;
-    margin: 0 5px;
-}
-
-.btn-github {
-    padding: 8px 16px;
-    background-color: #333333;
-    color: white;
-    border-radius: 4px;
-    font-size: 14px;
-    text-align: center;
-    margin: 0 5px;
-}
-
-.btn-cleanup {
-    padding: 8px 16px;
-    background-color: #ffc107;
-    color: #333333;
-    border-radius: 4px;
-    font-size: 14px;
-    text-align: center;
-    margin: 0 5px;
-}
-
-.btn-back {
-    padding: 8px 16px;
-    background-color: #6c757d;
-    color: white;
-    border-radius: 4px;
-    font-size: 14px;
-    text-align: center;
-    margin: 0 5px;
-}
-
-.version-new {
-    color: #28a745;
-    font-weight: bold;
-}
-
-.version-old {
-    color: #ffc107;
-}
-
-.item {
-    flex-direction: row;
-    align-items: center;
+.progress-container {
+    flex-direction: column;
+    gap: 5px;
     margin-bottom: 10px;
 }
 
-.item-text {
-    font-size: 14px;
-    color: #cccccc;
-    min-width: 80px;
-}
-
-.item-input {
+.progress-text {
     font-size: 14px;
     color: #ffffff;
+    text-align: center;
+}
+
+.progress-bar {
+    height: 20px;
+    background-color: #333333;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #007acc;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.file-info {
+    font-size: 14px;
+    color: #888888;
+    text-align: center;
+    margin-top: 5px;
+}
+
+/* 添加按钮样式 */
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+    margin: 0 5px;
+}
+
+.btn-primary {
+    background-color: #007acc;
+    color: white;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-disabled {
+    background-color: #666666;
+    color: #aaaaaa;
+}
+
+.operations-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.operation-btn {
     flex: 1;
+    padding: 10px;
+    text-align: center;
+    background-color: #333333;
+    border-radius: 4px;
+    font-size: 14px;
+    color: white;
+    min-width: 100px;
+}
+
+.operation-btn-primary {
+    background-color: #007acc;
+}
+
+.operation-btn-warning {
+    background-color: #ffc107;
+    color: #333333;
 }
