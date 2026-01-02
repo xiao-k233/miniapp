@@ -166,21 +166,26 @@
     padding: 5px 0;
 }
 
-.mirror-slider-item {
+/* 修复按钮文字显示问题 */
+.mirror-slider-btn {
     flex-shrink: 0;
-    width: 80px;
+    width: 85px;
     height: 30px;
     line-height: 30px;
     text-align: center;
     border-radius: 4px;
     background-color: #333333;
-    color: #888888;
-    font-size: 12px;
+    color: #ffffff; /* 确保文字颜色为白色 */
+    font-size: 13px;
+    font-weight: normal;
     margin-right: 5px;
     border: 1px solid #444444;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.mirror-slider-item-selected {
+.mirror-slider-btn-selected {
     background-color: #007acc;
     color: #ffffff;
     border-color: #007acc;

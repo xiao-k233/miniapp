@@ -49,7 +49,7 @@
                                 <text 
                                     v-for="mirror in mirrors" 
                                     :key="mirror.id"
-                                    :class="'mirror-slider-item ' + (selectedMirror === mirror.id ? 'mirror-slider-item-selected' : '')"
+                                    :class="'mirror-slider-btn ' + (selectedMirror === mirror.id ? 'mirror-slider-btn-selected' : '')"
                                     @click="selectMirror(mirror.id)"
                                 >
                                     {{ mirror.buttonName }}

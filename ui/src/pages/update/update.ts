@@ -31,7 +31,7 @@ const CURRENT_VERSION = '1.2.4';
 // 设备型号（根据设备设置）
 const DEVICE_MODEL = 'a6p'; // 例如: a6p, a6x, a5, c7 等
 
-// 镜像源配置 - 添加buttonName字段显示简短名称
+// 镜像源配置
 const MIRRORS = [
     {
         id: 'none',
