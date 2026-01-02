@@ -74,20 +74,17 @@
             <div class="section">
                 <text class="section-title">操作</text>
                 
-                <div class="item" style="justify-content: center;">
+                <div class="item" style="justify-content: center; margin: 10px 0;">
                     <text @click="forceCheck" class="btn-check">检查更新</text>
                     
                     <text v-if="hasUpdate && status === 'available'" @click="downloadUpdate" 
                           class="btn-update">下载并安装更新</text>
-                </div>
-                
-                <div class="item" style="justify-content: center; margin-top: 10px;">
-                    <text @click="openGitHub" class="btn-github">GitHub页面</text>
-                    <text @click="cleanup" class="btn-cleanup">清理临时文件</text>
-                </div>
-                
-                <div class="item" style="justify-content: center; margin-top: 10px;">
-                    <text @click="$page.finish()" class="btn-back">返回</text>
+                    <text v-else-if="status === 'downloading'" 
+                          class="btn-disabled">正在下载...</text>
+                    <text v-else-if="status === 'installing'" 
+                          class="btn-disabled">正在安装...</text>
+                    <text v-else-if="status === 'updated'" 
+                          class="btn-disabled">已是最新版本</text>
                 </div>
             </div>
             
@@ -95,11 +92,12 @@
             <div class="section">
                 <text class="section-title">使用说明</text>
                 <text style="font-size: 14px; color: #888888; line-height: 20px; padding: 10px;">
-                    1. 点击"检查更新"按钮获取最新版本信息
-                    2. 当前设备型号: {{ deviceModel }}
-                    3. 如果有新版本，点击"下载并安装更新"按钮
-                    4. 下载完成后会自动安装
-                    5. 安装完成后请重启应用
+                    1. 点击"检查更新"按钮获取最新版本信息<br/>
+                    2. 当前设备型号: {{ deviceModel }}<br/>
+                    3. 如果有新版本，点击"下载并安装更新"按钮<br/>
+                    4. 下载完成后会自动安装<br/>
+                    5. 安装完成后会自动清理临时文件<br/>
+                    6. 安装完成后请重启应用
                 </text>
             </div>
         </scroller>

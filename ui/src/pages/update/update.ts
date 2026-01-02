@@ -104,7 +104,7 @@ const update = defineComponent({
     },
 
     methods: {
-        // 初始化Shell - 更安全的版本
+        // 初始化Shell
         async initializeShell() {
             try {
                 console.log('开始初始化Shell...');
@@ -136,8 +136,6 @@ const update = defineComponent({
             } catch (error: any) {
                 console.error('Shell初始化失败:', error);
                 this.shellInitialized = false;
-                
-                // 不显示错误弹窗，只在控制台记录
                 console.warn('Shell模块初始化失败，部分功能可能受限');
             }
         },
@@ -289,7 +287,7 @@ const update = defineComponent({
             }
         },
 
-        // 安装更新
+        // 安装更新并自动清理
         async installUpdate() {
             if (!this.shellInitialized) {
                 showError('无法安装更新');
@@ -309,15 +307,13 @@ const update = defineComponent({
                 showSuccess('安装完成！请重启应用');
                 this.status = 'updated';
                 
-                // 清理下载的文件
-                setTimeout(async () => {
-                    try {
-                        await Shell.exec(`rm -f "${this.downloadPath}"`);
-                        console.log('清理临时文件成功');
-                    } catch (e) {
-                        console.warn('清理临时文件失败:', e);
-                    }
-                }, 3000);
+                // 立即清理下载的文件
+                try {
+                    await Shell.exec(`rm -f "${this.downloadPath}"`);
+                    console.log('安装完成后自动清理临时文件成功');
+                } catch (e) {
+                    console.warn('清理临时文件失败:', e);
+                }
                 
             } catch (error: any) {
                 console.error('安装失败:', error);
@@ -332,41 +328,6 @@ const update = defineComponent({
         // 手动检查更新
         forceCheck() {
             this.checkForUpdates();
-        },
-
-        // 清理临时文件
-        async cleanup() {
-            if (!this.shellInitialized) {
-                showError('Shell模块未初始化');
-                return;
-            }
-            
-            try {
-                showLoading('正在清理...');
-                await Shell.exec('rm -f /userdisk/miniapp_update_*.amr 2>/dev/null || true');
-                showSuccess('清理完成');
-            } catch (error: any) {
-                console.error('清理失败:', error);
-                showError(`清理失败: ${error.message}`);
-            } finally {
-                hideLoading();
-            }
-        },
-
-        // 查看GitHub页面
-        openGitHub() {
-            const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
-            showInfo(`请访问: ${url}`);
-        },
-
-        // 格式化日期
-        formatDate(dateString: string): string {
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('zh-CN');
-            } catch (e) {
-                return dateString;
-            }
         },
     }
 });
