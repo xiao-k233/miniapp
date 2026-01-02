@@ -41,7 +41,7 @@
                 <text class="section-title">下载设置</text>
                 
                 <div class="mirror-settings">
-                    <!-- 滑动栏容器 -->
+                    <!-- 滑动选择镜像源 -->
                     <div class="mirror-slider-container">
                         <text class="mirror-slider-label">镜像源:</text>
                         <scroller class="mirror-slider-scroller" scroll-direction="horizontal" :show-scrollbar="false">
@@ -49,7 +49,7 @@
                                 <text 
                                     v-for="mirror in mirrors" 
                                     :key="mirror.id"
-                                    :class="'mirror-slider-btn ' + (selectedMirror === mirror.id ? 'mirror-slider-btn-selected' : '')"
+                                    :class="'mirror-slider-item ' + (selectedMirror === mirror.id ? 'mirror-slider-item-selected' : '')"
                                     @click="selectMirror(mirror.id)"
                                 >
                                     {{ mirror.buttonName }}
@@ -58,9 +58,11 @@
                         </scroller>
                     </div>
                     
-                    <!-- 状态信息 -->
+                    <!-- 当前状态 -->
                     <div class="mirror-status-info">
-                        <text class="mirror-current">{{ currentMirror.name }}</text>
+                        <text class="mirror-current">
+                            {{ currentMirror?.name || '未选择镜像源' }}
+                        </text>
                         <text :class="'mirror-status ' + (useMirror ? 'mirror-status-active' : 'mirror-status-disabled')">
                             {{ useMirror ? '镜像加速已启用' : '镜像加速未启用' }}
                         </text>
@@ -98,7 +100,7 @@
                 </scroller>
             </div>
 
-            <!-- 操作按钮 -->
+            <!-- 操作 -->
             <div class="section">
                 <text class="section-title">操作</text>
                 
@@ -118,21 +120,8 @@
                     <text @click="$page.finish()" class="operation-btn">返回</text>
                 </div>
             </div>
-            
-            <!-- 使用说明 -->
-            <div class="section">
-                <text class="section-title">使用说明</text>
-                <text style="font-size: 14px; color: #888888; line-height: 20px; padding: 5px;">
-                    1. 点击"检查更新"按钮获取最新版本信息
-                    2. 左右滑动选择镜像源，点击按钮切换
-                    3. 如果有新版本，点击"下载并安装更新"按钮
-                    4. 下载完成后会自动安装
-                    5. 安装完成后请重启应用
-                    6. 如果自动更新失败，可以手动下载安装
-                </text>
-            </div>
         </scroller>
-        
+
         <Loading />
         <ToastMessage />
     </div>
@@ -146,6 +135,7 @@
 import update from './update';
 import Loading from '../../components/Loading.vue';
 import ToastMessage from '../../components/ToastMessage.vue';
+
 export default {
     ...update,
     components: {
