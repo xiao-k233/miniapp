@@ -10,7 +10,7 @@ on:
 env:
   TOOLCHAIN_URL: https://github.com/penosext/Cloudpan/releases/download/toolchains/armv7-eabihf--glibc--stable-2018.11-1.tar.bz2
   VERSIONINFO_URL: https://github.com/penosext/Cloudpan/releases/download/PenS6Pro/S6PversionInfo.tar.gz
-  DEVICE:  s6p
+  DEVICE: s6p
 
 jobs:
   build:
