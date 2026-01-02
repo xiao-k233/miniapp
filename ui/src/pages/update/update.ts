@@ -44,12 +44,21 @@ const MIRRORS = [
     },
     {
         id: 'ghproxy',
-        name: 'ghproxy.net (推荐)',
+        name: 'ghproxy.net',
         buttonName: 'ghproxy源',
         enabled: true,
         urlPattern: 'https://ghproxy.net/{url}',
         apiPattern: '{url}',
         testUrl: 'https://ghproxy.net/https://github.com'
+    },
+    {
+        id: 'ghproxy',
+        name: 'langningchen (推荐)',
+        buttonName: 'langningchen源',
+        enabled: true,
+        urlPattern: 'https://proxy.langningchen.com/{url}',
+        apiPattern: '{url}',
+        testUrl: 'https://proxy.langningchen.com/https://github.com'
     },
     {
         id: 'fastgit',
@@ -63,7 +72,7 @@ const MIRRORS = [
     {
         id: 'ghproxycn',
         name: 'ghproxy.com',
-        buttonName: 'ghproxy.com源',
+        buttonName: 'ghproxycn源',
         enabled: true,
         urlPattern: 'https://ghproxy.com/{url}',
         apiPattern: '{url}',
