@@ -6,7 +6,7 @@
 <text class="section-title">软件更新</text>
 <div class="item">
 <text class="item-text">更新状态:</text>
-<text :class="'update-status ' + statusClass">{{statusText}}</text>
+<text :class="'update-status '+statusClass">{{statusText}}</text>
 <text @click="forceCheck" class="btn btn-primary">检查更新</text>
 </div>
 
@@ -26,7 +26,7 @@
 <div class="mirror-slider-content">
 <text v-for="mirror in mirrors"
 :key="mirror.id"
-:class="'mirror-slider-item ' + (selectedMirror===mirror.id?'mirror-slider-item-selected':'')"
+:class="'mirror-slider-item '+(selectedMirror===mirror.id?'mirror-slider-item-selected':'')"
 @click="selectMirror(mirror.id)">{{mirror.buttonName}}</text>
 </div>
 </scroller>
@@ -34,7 +34,7 @@
 
 <div class="mirror-status-info">
 <text class="mirror-current">{{currentMirror.name}}</text>
-<text :class="'mirror-status ' + (useMirror?'mirror-status-active':'mirror-status-disabled')">{{useMirror?'镜像加速已启用':'镜像加速未启用'}}</text>
+<text :class="'mirror-status '+(useMirror?'mirror-status-active':'mirror-status-disabled')">{{useMirror?'镜像加速已启用':'镜像加速未启用'}}</text>
 </div>
 </div>
 </div>
@@ -66,7 +66,6 @@
 
 <div class="section">
 <text class="section-title">操作</text>
-
 <div class="item">
 <text v-if="hasUpdate&&status==='available'" @click="downloadUpdate" class="btn btn-success">下载并安装更新</text>
 <text v-else-if="status==='downloading'||status==='installing'" class="btn btn-disabled" style="opacity:0.5;">正在处理...</text>
@@ -75,23 +74,7 @@
 
 <div class="operations-grid">
 <text @click="openGitHub" class="operation-btn operation-btn-info">GitHub页面</text>
-<text @click="testNetwork" class="operation-btn operation-btn-info">测试网络</text>
-<text @click="testMirror" class="operation-btn operation-btn-info">测试镜像源</text>
-<text @click="cleanup" class="operation-btn operation-btn-warning">清理临时文件</text>
-<text @click="$page.finish()" class="operation-btn">返回</text>
 </div>
-</div>
-
-<div class="section">
-<text class="section-title">使用说明</text>
-<text style="font-size:14px;color:#888888;line-height:20px;padding:5px;">
-1. 点击"检查更新"按钮获取最新版本信息
-2. 左右滑动选择镜像源，点击按钮切换
-3. 如果有新版本，点击"下载并安装更新"按钮
-4. 下载完成后会自动安装
-5. 安装完成后请重启应用
-6. 如果自动更新失败，可以手动下载安装
-</text>
 </div>
 
 </scroller>
