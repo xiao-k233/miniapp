@@ -27,34 +27,28 @@
                 <div class="item">
                     <text class="item-text">更新状态:</text>
                     <text :class="'update-status ' + statusClass">{{ statusText }}</text>
-                    <text @click="forceCheck" class="btn btn-primary">检查更新</text>
                 </div>
                 
                 <div class="item">
                     <text class="item-text">设备型号:</text>
-                    <text class="item-text" style="color: #ffc107; flex: 1;">{{ deviceModel }}</text>
+                    <text class="item-input">{{ deviceModel }}</text>
+                </div>
+                
+                <div class="item">
+                    <text class="item-text">当前版本:</text>
+                    <text class="item-input">v{{ currentVersion }}</text>
+                </div>
+                
+                <div class="item" v-if="latestVersion">
+                    <text class="item-text">最新版本:</text>
+                    <text class="item-input" :class="hasUpdate ? 'version-new' : 'version-old'">
+                        {{ displayLatestVersion }}
+                    </text>
                 </div>
                 
                 <div v-if="errorMessage" class="item">
                     <text class="item-text" style="color: #dc3545;">错误信息:</text>
                     <text class="item-text" style="color: #dc3545; flex: 1;">{{ errorMessage }}</text>
-                </div>
-            </div>
-
-            <!-- 版本信息 -->
-            <div class="section" v-if="latestVersion">
-                <text class="section-title">版本信息</text>
-                
-                <div class="item">
-                    <text class="item-text">当前版本:</text>
-                    <text class="item-text" style="color: #ffc107; flex: 1;">v{{ currentVersion }}</text>
-                </div>
-                
-                <div class="item">
-                    <text class="item-text">最新版本:</text>
-                    <text class="item-text" :style="{color: hasUpdate ? '#28a745' : '#ffc107', flex: 1}">
-                        v{{ latestVersion }}
-                    </text>
                 </div>
             </div>
 
@@ -72,7 +66,7 @@
                 
                 <div class="item">
                     <text class="item-text">文件大小:</text>
-                    <text class="item-text" style="flex: 1;">{{ formattedFileSize }}</text>
+                    <text class="item-input">{{ formattedFileSize }}</text>
                 </div>
             </div>
 
@@ -80,13 +74,18 @@
             <div class="section">
                 <text class="section-title">操作</text>
                 
-                <div class="item" style="justify-content: center;">
+                <div class="item" style="justify-content: center; margin: 10px 0;">
+                    <text @click="forceCheck" class="btn-check">检查更新</text>
+                    
                     <text v-if="hasUpdate && status === 'available'" @click="downloadUpdate" 
-                          class="btn btn-success" style="margin: 0 10px;">下载并安装更新</text>
-                    <text v-else-if="status === 'downloading' || status === 'installing'" 
-                          class="btn btn-disabled" style="margin: 0 10px; opacity: 0.5;">正在处理...</text>
-                    <text v-else-if="status === 'updated'" class="btn btn-disabled" style="margin: 0 10px; opacity: 0.5;">已是最新版本</text>
-                    <text v-else class="btn btn-disabled" style="margin: 0 10px; opacity: 0.5;">暂无更新</text>
+                          class="btn-update">下载并安装更新</text>
+                    <text v-else-if="status === 'downloading'" 
+                          class="btn-disabled">正在下载...</text>
+                    <text v-else-if="status === 'installing'" 
+                          class="btn-disabled">正在安装...</text>
+                    <text v-else-if="status === 'updated' && latestVersion" 
+                          class="btn-disabled">已是最新版本</text>
+                    <text v-else class="btn-disabled">暂无更新</text>
                 </div>
             </div>
             
