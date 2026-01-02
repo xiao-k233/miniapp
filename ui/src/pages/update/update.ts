@@ -25,7 +25,19 @@ export type UpdateOptions = {};
 // GitHub配置
 const GITHUB_OWNER = 'penosext';
 const GITHUB_REPO = 'miniapp';
-const GITHUB_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+
+// 使用不同的API端点避免限制
+const API_ENDPOINTS = [
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`,
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases`,
+];
+
+// 使用CDN代理绕过限制
+const PROXY_URLS = [
+    '', // 直连
+    'https://ghproxy.net/', 
+    'https://mirror.ghproxy.com/',
+];
 
 // 当前版本号（每次发布需要更新）
 const CURRENT_VERSION = '1.0.0';
@@ -48,26 +60,25 @@ const update = defineComponent({
             $page: {} as FalconPage<UpdateOptions>,
             
             // 状态
-            status: 'idle' as 'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'updated' | 'error',
+            status: 'idle' as 'idle' | 'checking' | 'downloading' | 'installing' | 'updated' | 'error',
             errorMessage: '',
             
             // 版本信息
             currentVersion: CURRENT_VERSION,
-            latestRelease: null as GitHubRelease | null,
+            latestVersion: '',
+            releaseNotes: '',
+            downloadUrl: '',
+            fileSize: 0,
             
             // 下载信息
             downloadProgress: 0,
-            downloadSpeed: 0,
-            downloadedSize: 0,
-            totalSize: 0,
             downloadPath: '',
             
             // Shell状态
             shellInitialized: false,
             
-            // 重试次数
-            retryCount: 0,
-            maxRetries: 3,
+            // 使用Shell检查的标记
+            useShellForCheck: false,
         };
     },
 
@@ -81,7 +92,6 @@ const update = defineComponent({
             switch (this.status) {
                 case 'idle': return '准备检查更新';
                 case 'checking': return '正在检查更新...';
-                case 'available': return '发现新版本';
                 case 'downloading': return '正在下载更新...';
                 case 'installing': return '正在安装...';
                 case 'updated': return '已是最新版本';
@@ -93,7 +103,7 @@ const update = defineComponent({
         statusClass(): string {
             switch (this.status) {
                 case 'checking': return 'status-checking';
-                case 'available': return 'status-available';
+                case 'downloading': return 'status-available';
                 case 'updated': return 'status-updated';
                 case 'error': return 'status-error';
                 default: return '';
@@ -101,44 +111,15 @@ const update = defineComponent({
         },
 
         hasUpdate(): boolean {
-            if (!this.latestRelease) return false;
-            return this.compareVersions(this.latestRelease.tag_name, this.currentVersion) > 0;
-        },
-
-        downloadFile(): { name: string; url: string; size: number } | null {
-            if (!this.latestRelease || !this.latestRelease.assets.length) return null;
-            
-            // 查找.amr文件，支持多种命名方式
-            const amrAsset = this.latestRelease.assets.find(asset => 
-                asset.name.endsWith('.amr') || 
-                asset.name.includes('miniapp') ||
-                asset.name.includes('release')
-            );
-            
-            if (amrAsset) {
-                // 使用原始GitHub链接，不通过代理
-                return {
-                    name: amrAsset.name,
-                    url: amrAsset.browser_download_url,
-                    size: amrAsset.size
-                };
-            }
-            
-            return null;
+            if (!this.latestVersion) return false;
+            return this.compareVersions(this.latestVersion, this.currentVersion) > 0;
         },
 
         formattedFileSize(): string {
-            const size = this.totalSize || this.downloadFile?.size || 0;
-            if (size < 1024) return `${size} B`;
-            if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-            if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-            return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-        },
-
-        formattedDownloadedSize(): string {
-            if (this.downloadedSize < 1024) return `${this.downloadedSize} B`;
-            if (this.downloadedSize < 1024 * 1024) return `${(this.downloadedSize / 1024).toFixed(1)} KB`;
-            return `${(this.downloadedSize / (1024 * 1024)).toFixed(1)} MB`;
+            if (this.fileSize < 1024) return `${this.fileSize} B`;
+            if (this.fileSize < 1024 * 1024) return `${(this.fileSize / 1024).toFixed(1)} KB`;
+            if (this.fileSize < 1024 * 1024 * 1024) return `${(this.fileSize / (1024 * 1024)).toFixed(1)} MB`;
+            return `${(this.fileSize / (1024 * 1024 * 1024)).toFixed(1)} GB`;
         },
     },
 
@@ -152,28 +133,55 @@ const update = defineComponent({
                 
                 await Shell.initialize();
                 this.shellInitialized = true;
+                console.log('Shell初始化成功');
             } catch (error: any) {
                 console.error('Shell初始化失败:', error);
                 this.shellInitialized = false;
+                showError('Shell模块初始化失败，部分功能受限');
             }
         },
 
-        // 检查更新 - 只使用GitHub Release API
+        // 检查更新 - 使用多种方法
         async checkForUpdates() {
             this.status = 'checking';
             this.errorMessage = '';
-            this.retryCount = 0;
             
             try {
                 showLoading();
-                await this.fetchReleaseData();
                 
-                if (this.hasUpdate) {
-                    this.status = 'available';
-                    showInfo(`发现新版本 ${this.latestRelease!.tag_name}`);
+                // 方法1：首先尝试使用Shell命令检查（绕过HTTP限制）
+                if (this.shellInitialized) {
+                    try {
+                        await this.checkViaShell();
+                        if (this.latestVersion) {
+                            // Shell检查成功
+                            if (this.hasUpdate) {
+                                this.status = 'updated';
+                                showInfo(`发现新版本 ${this.latestVersion}`);
+                            } else {
+                                this.status = 'updated';
+                                showSuccess('已是最新版本');
+                            }
+                            return;
+                        }
+                    } catch (shellError) {
+                        console.log('Shell检查失败，尝试HTTP:', shellError);
+                    }
+                }
+                
+                // 方法2：尝试HTTP请求
+                await this.checkViaHttp();
+                
+                if (this.latestVersion) {
+                    if (this.hasUpdate) {
+                        this.status = 'updated';
+                        showInfo(`发现新版本 ${this.latestVersion}`);
+                    } else {
+                        this.status = 'updated';
+                        showSuccess('已是最新版本');
+                    }
                 } else {
-                    this.status = 'updated';
-                    showSuccess('已是最新版本');
+                    throw new Error('无法获取版本信息');
                 }
                 
             } catch (error: any) {
@@ -181,89 +189,126 @@ const update = defineComponent({
                 this.status = 'error';
                 this.errorMessage = error.message || '网络连接失败';
                 showError(`检查更新失败: ${this.errorMessage}`);
+                
+                // 提供备选方案
+                showInfo('请尝试手动更新或使用Shell命令检查');
             } finally {
                 hideLoading();
             }
         },
 
-        // 获取Release数据 - 解决403问题的核心
-        async fetchReleaseData(): Promise<void> {
-            // 准备多个User-Agent
-            const userAgents = [
-                'Mozilla/5.0 (Linux; Android 10; YoudaoDictionaryPen) AppleWebKit/537.36',
-                'Mozilla/5.0 (Linux; U; Android 10; zh-cn; YoudaoDictionaryPen) AppleWebKit/537.36',
-                'miniapp-updater/1.0',
-                'curl/7.68.0',
-                'GitHub-Release-Checker/1.0'
-            ];
+        // 使用Shell命令检查更新
+        async checkViaShell() {
+            if (!this.shellInitialized || !Shell) {
+                throw new Error('Shell不可用');
+            }
             
-            // 准备多个Accept头
-            const acceptHeaders = [
-                'application/vnd.github.v3+json',
-                'application/json',
-                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-            ];
+            console.log('使用Shell命令检查更新...');
             
-            for (let i = 0; i < this.maxRetries; i++) {
-                try {
-                    const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-                    const acceptHeader = acceptHeaders[Math.floor(Math.random() * acceptHeaders.length)];
+            // 尝试从version.txt获取版本信息
+            const versionCheckCmd = `curl -s -k -L "https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/version.txt" || echo "1.0.0"`;
+            
+            try {
+                const versionResult = await Shell.exec(versionCheckCmd);
+                const version = versionResult.trim();
+                
+                if (version && version !== '1.0.0') {
+                    this.latestVersion = version;
+                    this.releaseNotes = `版本 ${version} 已发布`;
                     
-                    console.log(`尝试第 ${i + 1} 次，使用User-Agent: ${userAgent}`);
+                    // 构建下载URL
+                    this.downloadUrl = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/${version}/miniapp_${version}.amr`;
+                    this.fileSize = 30000000; // 估计大小
                     
-                    const response = await $falcon.jsapi.http.request({
-                        url: GITHUB_API,
-                        method: 'GET',
-                        headers: {
-                            'User-Agent': userAgent,
-                            'Accept': acceptHeader,
-                            'Cache-Control': 'no-cache',
-                            'Pragma': 'no-cache'
-                        },
-                        timeout: 15000 // 15秒超时
-                    });
-                    
-                    console.log('GitHub API响应状态:', response.statusCode);
-                    
-                    if (response.statusCode === 200) {
-                        this.latestRelease = response.data as GitHubRelease;
-                        console.log('成功获取Release数据:', this.latestRelease);
-                        return; // 成功，退出函数
-                    } else if (response.statusCode === 403) {
-                        // 403错误，可能是请求频率限制
-                        const resetTime = response.headers['x-ratelimit-reset'] || '60';
-                        const waitTime = parseInt(resetTime) * 1000 - Date.now();
+                    console.log('通过Shell获取到版本:', version);
+                    return;
+                }
+            } catch (error) {
+                console.error('Shell版本检查失败:', error);
+            }
+            
+            // 如果version.txt失败，尝试其他方法
+            throw new Error('无法通过Shell获取版本');
+        },
+
+        // 使用HTTP请求检查更新
+        async checkViaHttp() {
+            console.log('尝试HTTP请求检查更新...');
+            
+            // 尝试不同的端点和代理组合
+            for (const endpoint of API_ENDPOINTS) {
+                for (const proxy of PROXY_URLS) {
+                    try {
+                        const url = proxy ? `${proxy}${endpoint}` : endpoint;
                         
-                        if (waitTime > 0 && waitTime < 60000) {
-                            console.log(`遇到频率限制，等待 ${Math.ceil(waitTime / 1000)} 秒后重试`);
-                            showWarning(`GitHub API频率限制，等待 ${Math.ceil(waitTime / 1000)} 秒`);
-                            await this.delay(Math.min(waitTime, 30000)); // 最多等待30秒
+                        console.log(`尝试URL: ${url}`);
+                        
+                        const response = await $falcon.jsapi.http.request({
+                            url: url,
+                            method: 'GET',
+                            headers: {
+                                'User-Agent': 'miniapp-updater/1.0',
+                                'Accept': 'application/json'
+                            },
+                            timeout: 10000
+                        });
+                        
+                        console.log('HTTP响应状态:', response.statusCode);
+                        
+                        if (response.statusCode === 200) {
+                            const data = response.data;
+                            
+                            // 处理数据
+                            if (Array.isArray(data) && data.length > 0) {
+                                // 如果是数组，取第一个（最新）
+                                const latest = data[0];
+                                this.latestVersion = latest.tag_name;
+                                this.releaseNotes = latest.body || '无更新说明';
+                                
+                                if (latest.assets && latest.assets.length > 0) {
+                                    const amrAsset = latest.assets.find((a: any) => 
+                                        a.name.endsWith('.amr') || a.name.includes('miniapp')
+                                    );
+                                    if (amrAsset) {
+                                        this.downloadUrl = amrAsset.browser_download_url;
+                                        this.fileSize = amrAsset.size || 0;
+                                    }
+                                }
+                            } else if (data.tag_name) {
+                                // 如果是单个release对象
+                                this.latestVersion = data.tag_name;
+                                this.releaseNotes = data.body || '无更新说明';
+                                
+                                if (data.assets && data.assets.length > 0) {
+                                    const amrAsset = data.assets.find((a: any) => 
+                                        a.name.endsWith('.amr') || a.name.includes('miniapp')
+                                    );
+                                    if (amrAsset) {
+                                        this.downloadUrl = amrAsset.browser_download_url;
+                                        this.fileSize = amrAsset.size || 0;
+                                    }
+                                }
+                            }
+                            
+                            if (this.latestVersion) {
+                                console.log('HTTP检查成功，版本:', this.latestVersion);
+                                return;
+                            }
+                        } else if (response.statusCode === 403) {
+                            console.warn(`HTTP 403错误: ${url}`);
+                            continue; // 继续尝试下一个
                         }
-                        
-                        throw new Error(`GitHub API返回 ${response.statusCode}，可能被频率限制`);
-                    } else if (response.statusCode === 404) {
-                        throw new Error('未找到Release，请确认仓库名正确');
-                    } else {
-                        throw new Error(`GitHub API返回错误: ${response.statusCode}`);
+                    } catch (error) {
+                        console.log(`HTTP请求失败: ${endpoint}`, error);
+                        // 继续尝试下一个
                     }
                     
-                } catch (error: any) {
-                    console.error(`第 ${i + 1} 次尝试失败:`, error);
-                    this.retryCount = i + 1;
-                    
-                    // 如果不是最后一次尝试，等待后重试
-                    if (i < this.maxRetries - 1) {
-                        const waitTime = Math.pow(2, i) * 1000; // 指数退避
-                        console.log(`等待 ${waitTime / 1000} 秒后重试`);
-                        await this.delay(waitTime);
-                    } else {
-                        // 最后一次尝试也失败，抛出错误
-                        throw error;
-                    }
+                    // 短暂延迟避免请求过快
+                    await this.delay(500);
                 }
             }
             
-            throw new Error('所有尝试都失败了');
+            throw new Error('所有HTTP尝试都失败了');
         },
 
         // 比较版本号
@@ -285,15 +330,18 @@ const update = defineComponent({
 
         // 下载更新
         async downloadUpdate() {
-            if (!this.shellInitialized || !Shell || !this.downloadFile) {
-                showError('无法下载更新，Shell模块未初始化或没有下载文件');
+            if (!this.shellInitialized || !Shell) {
+                showError('无法下载更新，Shell模块未初始化');
+                return;
+            }
+            
+            if (!this.downloadUrl) {
+                showError('没有可用的下载链接');
                 return;
             }
             
             this.status = 'downloading';
             this.downloadProgress = 0;
-            this.downloadedSize = 0;
-            this.totalSize = this.downloadFile.size;
             
             try {
                 showLoading('开始下载...');
@@ -301,38 +349,38 @@ const update = defineComponent({
                 // 设置下载路径
                 this.downloadPath = `/userdisk/miniapp_update_${Date.now()}.amr`;
                 
-                console.log('开始下载:', this.downloadFile.url);
+                console.log('下载URL:', this.downloadUrl);
                 console.log('保存到:', this.downloadPath);
                 
-                // 使用curl下载文件，增加重试和超时设置
-                const downloadCmd = `curl -k -L --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 300 "${this.downloadFile.url}" -o "${this.downloadPath}"`;
+                // 使用curl下载文件，尝试不同的选项
+                const downloadCmd = `curl -k -L --retry 3 --retry-delay 5 --connect-timeout 60 --max-time 600 "${this.downloadUrl}" -o "${this.downloadPath}" 2>&1`;
                 
                 console.log('执行下载命令:', downloadCmd);
                 
                 // 执行下载命令
                 const result = await Shell.exec(downloadCmd);
-                console.log('下载命令执行结果:', result);
+                console.log('下载结果:', result);
                 
                 // 检查文件是否下载成功
-                const checkCmd = `test -f "${this.downloadPath}" && echo "exists" || echo "not exists"`;
+                const checkCmd = `if [ -f "${this.downloadPath}" ]; then echo "exists"; else echo "not exists"; fi`;
                 const checkResult = await Shell.exec(checkCmd);
                 
                 if (checkResult.trim() === 'exists') {
                     // 获取文件大小
-                    const sizeCmd = `stat -c%s "${this.downloadPath}" 2>/dev/null || wc -c < "${this.downloadPath}"`;
+                    const sizeCmd = `wc -c < "${this.downloadPath}"`;
                     const sizeResult = await Shell.exec(sizeCmd);
                     const actualSize = parseInt(sizeResult.trim()) || 0;
                     
                     console.log('文件下载成功，大小:', actualSize, '字节');
                     
-                    if (actualSize > 10000) { // 确保文件不是空的（至少10KB）
+                    if (actualSize > 10000) { // 至少10KB
                         showSuccess('下载完成，开始安装');
                         await this.installUpdate();
                     } else {
                         throw new Error(`下载的文件大小异常: ${actualSize} 字节`);
                     }
                 } else {
-                    throw new Error('文件下载失败，文件不存在');
+                    throw new Error('文件下载失败');
                 }
                 
             } catch (error: any) {
@@ -351,10 +399,8 @@ const update = defineComponent({
                 }
                 
                 // 提供手动安装说明
-                if (this.downloadFile) {
-                    showInfo(`你可以手动下载: ${this.downloadFile.url}`);
-                    showInfo(`然后执行: miniapp_cli install 文件路径`);
-                }
+                showInfo(`手动下载链接: ${this.downloadUrl}`);
+                showInfo(`手动安装命令: miniapp_cli install 下载的文件路径`);
             } finally {
                 hideLoading();
             }
@@ -373,30 +419,36 @@ const update = defineComponent({
                 showLoading('正在安装...');
                 
                 // 执行安装命令
-                const installCmd = `miniapp_cli install "${this.downloadPath}"`;
+                const installCmd = `miniapp_cli install "${this.downloadPath}" 2>&1`;
                 console.log('执行安装命令:', installCmd);
                 
                 const result = await Shell.exec(installCmd);
                 console.log('安装结果:', result);
                 
-                // 检查安装是否成功（根据miniapp_cli的输出来判断）
+                // 根据输出判断是否成功
                 if (result.includes('success') || result.includes('Success') || 
-                    result.includes('安装') || result.trim() === '') {
-                    showSuccess('安装完成！请重启应用');
+                    result.includes('安装成功') || result.trim() === '') {
+                    showSuccess('安装完成！应用将自动重启');
                     this.status = 'updated';
+                    
+                    // 清理下载的文件
+                    setTimeout(async () => {
+                        try {
+                            await Shell.exec(`rm -f "${this.downloadPath}"`);
+                            console.log('清理临时文件成功');
+                        } catch (e) {
+                            console.warn('清理临时文件失败:', e);
+                        }
+                    }, 2000);
+                    
+                    // 提示重启
+                    setTimeout(() => {
+                        showInfo('请手动重启应用以使用新版本');
+                    }, 3000);
+                    
                 } else {
-                    throw new Error(`安装命令返回: ${result}`);
+                    throw new Error(`安装可能失败: ${result}`);
                 }
-                
-                // 清理下载的文件
-                setTimeout(async () => {
-                    try {
-                        await Shell.exec(`rm -f "${this.downloadPath}"`);
-                        console.log('清理临时文件成功');
-                    } catch (e) {
-                        console.warn('清理临时文件失败:', e);
-                    }
-                }, 3000);
                 
             } catch (error: any) {
                 console.error('安装失败:', error);
@@ -405,7 +457,7 @@ const update = defineComponent({
                 showError(`安装失败: ${this.errorMessage}`);
                 
                 // 提供手动安装说明
-                showInfo(`你可以手动安装: miniapp_cli install ${this.downloadPath}`);
+                showInfo(`请手动安装: miniapp_cli install ${this.downloadPath}`);
             } finally {
                 hideLoading();
             }
@@ -414,22 +466,6 @@ const update = defineComponent({
         // 延迟函数
         delay(ms: number): Promise<void> {
             return new Promise(resolve => setTimeout(resolve, ms));
-        },
-
-        // 格式化日期
-        formatDate(dateString: string): string {
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('zh-CN', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            } catch (e) {
-                return dateString;
-            }
         },
 
         // 手动检查更新
@@ -446,7 +482,7 @@ const update = defineComponent({
             
             try {
                 showLoading('正在清理...');
-                const result = await Shell.exec('find /userdisk -name "miniapp_update_*.amr" -type f -delete 2>/dev/null || true');
+                const result = await Shell.exec('rm -f /userdisk/miniapp_update_*.amr 2>/dev/null || true');
                 console.log('清理结果:', result);
                 showSuccess('清理完成');
             } catch (error: any) {
@@ -457,17 +493,66 @@ const update = defineComponent({
             }
         },
 
-        // 查看GitHub Release页面
-        openGitHubRelease() {
+        // 查看GitHub页面
+        openGitHub() {
             const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
-            showInfo(`请访问GitHub查看Release: ${url}`);
+            showInfo(`GitHub Releases: ${url}`);
         },
 
-        // 复制下载链接
-        copyDownloadLink() {
-            if (this.downloadFile) {
-                showInfo(`下载链接已复制（模拟）: ${this.downloadFile.url}`);
-                // 在实际设备上，你可能需要使用设备的剪贴板功能
+        // 手动输入下载链接
+        async manualDownload() {
+            if (!this.shellInitialized || !Shell) {
+                showError('Shell模块未初始化');
+                return;
+            }
+            
+            showInfo('请在Shell中输入下载链接，格式如: https://github.com/.../miniapp_v1.0.1.amr');
+            
+            // 这里可以添加一个输入框让用户输入URL
+            // 暂时使用提示
+        },
+
+        // 测试网络连接
+        async testNetwork() {
+            if (!this.shellInitialized || !Shell) {
+                showError('Shell模块未初始化');
+                return;
+            }
+            
+            try {
+                showLoading('测试网络连接...');
+                
+                const testUrls = [
+                    'https://github.com',
+                    'https://raw.githubusercontent.com',
+                    'https://api.github.com'
+                ];
+                
+                let success = false;
+                
+                for (const url of testUrls) {
+                    try {
+                        const cmd = `curl -s -k --connect-timeout 10 "${url}" | head -c 100`;
+                        const result = await Shell.exec(cmd);
+                        if (result && result.trim().length > 0) {
+                            showSuccess(`可以访问: ${url}`);
+                            success = true;
+                            break;
+                        }
+                    } catch (e) {
+                        console.log(`无法访问 ${url}:`, e);
+                    }
+                }
+                
+                if (!success) {
+                    showError('网络连接测试失败，请检查网络设置');
+                }
+                
+            } catch (error: any) {
+                console.error('网络测试失败:', error);
+                showError(`网络测试失败: ${error.message}`);
+            } finally {
+                hideLoading();
             }
         }
     }
