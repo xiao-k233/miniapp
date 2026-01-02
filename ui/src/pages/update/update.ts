@@ -27,7 +27,7 @@ const GITHUB_OWNER = 'penosext';
 const GITHUB_REPO = 'miniapp';
 
 // 当前版本号（每次发布需要更新）
-const CURRENT_VERSION = '1.0.0';
+const CURRENT_VERSION = '1.2.4';
 // 设备型号（根据设备设置）
 const DEVICE_MODEL = 'a6p'; // 例如: a6p, a6x, a5, c7 等
 
