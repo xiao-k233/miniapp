@@ -10,6 +10,12 @@
 <text @click="forceCheck" class="btn btn-primary">检查更新</text>
 </div>
 
+<div class="item">
+<text class="item-text">系统状态:</text>
+<text :class="'update-status ' + apiStatusClass">{{apiStatusText}}</text>
+<text @click="showConfigInfo" class="btn btn-info">查看配置</text>
+</div>
+
 <div v-if="errorMessage" class="item">
 <text class="item-text" style="color:#dc3545;">错误:</text>
 <text class="item-text" style="color:#dc3545;flex:1;">{{errorMessage}}</text>
@@ -33,8 +39,13 @@
 </div>
 
 <div class="mirror-status-info">
-<text class="mirror-current">{{currentMirror.name}}</text>
+<text class="mirror-current">当前: {{currentMirror.name}}</text>
 <text :class="'mirror-status ' + (useMirror?'mirror-status-active':'mirror-status-disabled')">{{useMirror?'镜像加速已启用':'镜像加速未启用'}}</text>
+</div>
+
+<div style="flex-direction:row;gap:5px;margin-top:5px;">
+<text @click="testMirrorConnection" class="btn btn-info" style="font-size:12px;padding:2px 8px;">测试连接</text>
+<text v-if="processedUrl" @click="() => showInfo('下载URL: ' + processedUrl)" class="btn btn-info" style="font-size:12px;padding:2px 8px;">查看URL</text>
 </div>
 </div>
 </div>
@@ -42,6 +53,10 @@
 <div v-if="latestVersion" class="section">
 <text class="section-title">版本信息</text>
 <div class="version-info">
+<div class="version-line">
+<text class="version-label">设备型号:</text>
+<text class="version-value">{{deviceModel}}</text>
+</div>
 <div class="version-line">
 <text class="version-label">当前版本:</text>
 <text class="version-value version-old">{{currentVersion}}</text>
@@ -53,6 +68,14 @@
 <div v-if="fileSize>0" class="version-line">
 <text class="version-label">文件大小:</text>
 <text class="version-value">{{formattedFileSize}}</text>
+</div>
+<div v-if="publishedAt" class="version-line">
+<text class="version-label">发布时间:</text>
+<text class="version-value">{{formattedPublishedDate}}</text>
+</div>
+<div v-if="assetName" class="version-line">
+<text class="version-label">更新文件:</text>
+<text class="version-value">{{assetName}}</text>
 </div>
 </div>
 </div>
@@ -68,13 +91,20 @@
 <text class="section-title">操作</text>
 
 <div class="item">
-<text v-if="hasUpdate&&status==='available'" @click="downloadUpdate" class="btn btn-success">下载</text>
-<text v-else-if="status==='downloading'||status==='installing'" class="btn btn-disabled" style="opacity:0.5;">正在处理...</text>
+<text v-if="hasUpdate && status==='available'" 
+      @click="downloadUpdate" 
+      class="btn btn-success">下载并安装</text>
+<text v-else-if="status==='downloading'||status==='installing'" 
+      class="btn btn-disabled" 
+      style="opacity:0.5;">正在处理...</text>
 <text v-else class="btn btn-disabled" style="opacity:0.5;">暂无更新</text>
 </div>
 
 <div class="operations-grid">
 <text @click="openGitHub" class="operation-btn operation-btn-info">GitHub页面</text>
+<text @click="showDeviceInfo" class="operation-btn operation-btn-info">设备信息</text>
+<text @click="testMirrorConnection" class="operation-btn operation-btn-info">测试镜像</text>
+<text @click="cleanupDownloadFiles" class="operation-btn operation-btn-danger">清理文件</text>
 </div>
 </div>
 
@@ -83,10 +113,12 @@
 <text style="font-size:14px;color:#888888;line-height:20px;padding:5px;">
 1. 点击"检查更新"按钮获取最新版本信息
 2. 左右滑动选择镜像源，点击按钮切换
-3. 如果有新版本，点击"下载并安装更新"按钮
-4. 下载完成后会自动安装
-5. 安装完成后请重启应用
-6. 如果自动更新失败，可以手动下载安装
+3. 点击"测试连接"检查镜像源是否可用
+4. 系统会自动匹配您的设备型号: {{deviceModel}}
+5. 如果有新版本，点击"下载并安装更新"按钮
+6. 下载完成后会自动安装
+7. 安装完成后请重启应用
+8. 如果自动更新失败，可以手动下载安装
 </text>
 </div>
 
