@@ -49,7 +49,7 @@
                     <text class="item-text">GitHub仓库</text>
                     <text class="item-input" @click="openGitHub">{{ githubRepo }}</text>
                     <text @click="copyGitHubLink" class="btn btn-primary">复制链接</text>
-                    <text class="item-input" @click="update">检测更新</text>
+                    <text class="item-input" @click="Update">检测更新</text>
                 </div>
                 
                 <div class="item">
