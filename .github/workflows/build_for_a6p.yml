@@ -10,7 +10,7 @@ on:
 env:
   TOOLCHAIN_URL: https://github.com/penosext/Cloudpan/releases/download/toolchains/armv7-eabihf--uclibc--bleeding-edge-2018.11-1.tar.bz2
   VERSIONINFO_URL: https://github.com/penosext/Cloudpan/releases/download/PenA6Pro/A6PversionInfo.tar.gz
-  DEVICE: ap6
+  DEVICE: a6p
 
 jobs:
   build:
