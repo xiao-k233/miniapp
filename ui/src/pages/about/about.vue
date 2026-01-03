@@ -40,24 +40,23 @@
                 </div>
             </div>
             
-            <!-- GitHub信息 -->
+            <!-- 项目链接 -->
             <div class="section">
                 <text class="section-title">项目信息</text>
                 
-                <div class="item">
-                    <text class="item-text">GitHub仓库</text>
-                    <text class="item-input" @click="openGitHub">{{ githubRepo }}</text>
-                    <text @click="copyGitHubLink" class="btn btn-primary">复制链接</text>
+                <div class="link-item" @click="openGitHub">
+                    <text class="link-icon">🌐</text>
+                    <text class="link-text">GitHub: {{ githubRepo }}</text>
                 </div>
                 
-                <div class="item">
-                    <text class="item-text">检测更新</text>
-                    <text class="item-input" @click="Update">点击检测更新</text>
+                <div class="link-item" @click="goToUpdate">
+                    <text class="link-icon">🔄</text>
+                    <text class="link-text">Update页面入口</text>
                 </div>
                 
-                <div class="item">
-                    <text class="item-text">许可证</text>
-                    <text class="item-input">GNU General Public License v3.0</text>
+                <div class="link-item">
+                    <text class="link-icon">📄</text>
+                    <text class="link-text">许可证: GNU General Public License v3.0</text>
                 </div>
             </div>
         </scroller>
