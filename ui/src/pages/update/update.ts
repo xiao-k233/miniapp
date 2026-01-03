@@ -18,6 +18,8 @@
 import { defineComponent } from 'vue';
 import { showError, showSuccess, showInfo } from '../../components/ToastMessage';
 import { hideLoading, showLoading } from '../../components/Loading';
+import { Shell } from 'langningchen';
+import { Update } from 'langningchen';
 
 export type UpdateOptions = {};
 
