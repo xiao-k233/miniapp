@@ -1,4 +1,4 @@
-/* about.less - 关于页面样式 */
+/* about.less - 最终简化版关于页面样式 */
 @import url('../../styles/section.less');
 
 /* 项目信息卡片 */
@@ -55,4 +55,30 @@
     color: #007acc;
     line-height: 22px;
     white-space: pre-line;
+}
+
+/* 链接项目样式 */
+.link-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-bottom: 1px solid #333333;
+}
+
+.link-item:active {
+    background-color: #222222;
+}
+
+.link-icon {
+    font-size: 16px;
+    width: 24px;
+    text-align: center;
+}
+
+.link-text {
+    font-size: 14px;
+    color: #cccccc;
+    flex: 1;
 }
