@@ -78,7 +78,6 @@
     font-size: 14px;
     line-height: 20px;
     margin-bottom: 10px;
-    overflow: hidden;
 }
 
 .file-info {
@@ -121,11 +120,6 @@
 
 .operation-btn-info {
     background-color: #17a2b8;
-}
-
-.operation-btn-warning {
-    background-color: #ffc107;
-    color: #333333;
 }
 
 /* 镜像源相关样式 */
@@ -187,10 +181,6 @@
     border-color: #007acc;
 }
 
-.mirror-slider-item:active {
-    opacity: 0.8;
-}
-
 .mirror-status-info {
     flex-direction: row;
     align-items: center;
@@ -221,107 +211,4 @@
 .mirror-status-disabled {
     color: #888888;
     background-color: #222222;
-}
-
-/* API状态样式 */
-.api-status-info {
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    padding: 8px;
-    background-color: #111111;
-    border-radius: 3px;
-    margin-bottom: 10px;
-}
-
-.api-status-label {
-    font-size: 14px;
-    color: #888888;
-}
-
-.api-status-value {
-    font-size: 14px;
-    flex: 1;
-    text-align: right;
-}
-
-.api-status-available {
-    color: #28a745;
-}
-
-.api-status-backup {
-    color: #ffc107;
-}
-
-.api-status-unavailable {
-    color: #dc3545;
-}
-
-/* 按钮样式增强 */
-.btn {
-    height: 24px;
-    line-height: 24px;
-    font-size: 14px;
-    text-align: center;
-    border-radius: 3px;
-    padding: 0 8px;
-    background-color: #333333;
-    color: #ffffff;
-    border: none;
-}
-
-.btn:active {
-    opacity: 0.8;
-}
-
-.btn-primary {
-    background-color: #007acc;
-}
-
-.btn-success {
-    background-color: #28a745;
-}
-
-.btn-info {
-    background-color: #17a2b8;
-}
-
-.btn-danger {
-    background-color: #dc3545;
-}
-
-.btn-warning {
-    background-color: #ffc107;
-    color: #333333;
-}
-
-.btn-disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-disabled:active {
-    opacity: 0.5;
-}
-
-/* 响应式调整 */
-@media (max-width: 400px) {
-    .version-label {
-        min-width: 70px;
-        font-size: 13px;
-    }
-    
-    .version-value {
-        font-size: 14px;
-    }
-    
-    .mirror-slider-item {
-        width: 70px;
-        font-size: 11px;
-    }
-    
-    .operation-btn {
-        min-width: 60px;
-        font-size: 12px;
-    }
 }
