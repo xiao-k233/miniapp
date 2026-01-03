@@ -26,7 +26,7 @@
                 
                 <div class="info-card">
                     <text class="project-title">{{ projectName }}</text>
-                    <text class="version-info">版本 {{ version }}</text>
+                    <text class="version-info">版本 {{ fullVersionInfo }}</text>
                     <text class="project-description">{{ description }}</text>
                 </div>
             </div>
@@ -47,9 +47,13 @@
                 
                 <div class="item">
                     <text class="item-text">GitHub仓库</text>
-                    <text class="item-input" @click="openGitHub">{{ githubRepo }}</text>
+                    <text class="item-input" @click="openGitHub">{{ githubFullRepo }}</text>
                     <text @click="copyGitHubLink" class="btn btn-primary">复制链接</text>
-                    <text class="item-input" @click="Update">检测更新</text>
+                </div>
+                
+                <div class="item">
+                    <text class="item-text">检测更新</text>
+                    <text class="item-input" @click="Update">点击检测更新</text>
                 </div>
                 
                 <div class="item">
