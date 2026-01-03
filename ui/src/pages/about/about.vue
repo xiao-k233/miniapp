@@ -50,7 +50,7 @@
                 </div>
                 
                 <div class="text-item">
-                    <image class="image-icon" resize="contain" :src="require('../..images/license.png')" />
+                    <image class="image-icon" resize="contain" :src="require('../../images/license.png')" />
                     <text class="text-content">许可证: GNU General Public License v3.0</text>
                 </div>
                 
