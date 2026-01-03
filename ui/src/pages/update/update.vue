@@ -44,8 +44,24 @@
 </div>
 
 <div style="flex-direction:row;gap:5px;margin-top:5px;">
-<text @click="testMirrorConnection" class="btn btn-info" style="font-size:12px;padding:2px 8px;">测试连接</text>
-<text v-if="processedUrl" @click="() => showInfo('下载URL: ' + processedUrl)" class="btn btn-info" style="font-size:12px;padding:2px 8px;">查看URL</text>
+<text @click="testMirrorConnection" class="operation-btn operation-btn-info">测试连接</text>
+<text @click="showCurrentUrl" class="operation-btn operation-btn-info">查看URL</text>
+<text @click="showDeviceInfo" class="operation-btn operation-btn-info">设备信息</text>
+</div>
+
+<!-- 下载按钮和GitHub页面按钮放在这里 -->
+<div style="flex-direction:row;gap:5px;margin-top:10px;">
+<text v-if="hasUpdate && status==='available'" 
+      @click="downloadUpdate" 
+      class="btn btn-success" style="flex:1;text-align:center;">下载并安装</text>
+<text v-else-if="status==='downloading'||status==='installing'" 
+      class="btn btn-disabled" 
+      style="flex:1;text-align:center;opacity:0.5;">正在处理...</text>
+<text v-else class="btn btn-disabled" style="flex:1;text-align:center;opacity:0.5;">暂无更新</text>
+</div>
+
+<div style="flex-direction:row;gap:5px;margin-top:5px;">
+<text @click="openGitHub" class="operation-btn operation-btn-primary" style="flex:1;text-align:center;">GitHub页面</text>
 </div>
 </div>
 </div>
@@ -85,27 +101,6 @@
 <scroller class="release-notes" scroll-direction="vertical">
 <text style="color:#ffffff;">{{releaseNotes}}</text>
 </scroller>
-</div>
-
-<div class="section">
-<text class="section-title">操作</text>
-
-<div class="item">
-<text v-if="hasUpdate && status==='available'" 
-      @click="downloadUpdate" 
-      class="btn btn-success">下载并安装</text>
-<text v-else-if="status==='downloading'||status==='installing'" 
-      class="btn btn-disabled" 
-      style="opacity:0.5;">正在处理...</text>
-<text v-else class="btn btn-disabled" style="opacity:0.5;">暂无更新</text>
-</div>
-
-<div class="operations-grid">
-<text @click="openGitHub" class="operation-btn operation-btn-info">GitHub页面</text>
-<text @click="showDeviceInfo" class="operation-btn operation-btn-info">设备信息</text>
-<text @click="testMirrorConnection" class="operation-btn operation-btn-info">测试镜像</text>
-<text @click="cleanupDownloadFiles" class="operation-btn operation-btn-danger">清理文件</text>
-</div>
 </div>
 
 <div class="section">
