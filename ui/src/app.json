@@ -3,7 +3,7 @@
     "index": "pages/index/index.vue",
     "ai": "pages/ai/ai.vue",
     "update": "pages/update/update.vue",
-    "about": "pages/anout/about.vue",
+    "about": "pages/about/about.vue",
     "shell": "pages/shell/shell.vue",
     "softKeyboard": "pages/softKeyboard/softKeyboard.vue",
     "aiSettings": "pages/aiSettings/aiSettings.vue",
