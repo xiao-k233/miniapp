@@ -36,7 +36,7 @@ jobs:
 
       - name: Build
         run: |
-          sed -i "s/const DEVICE_MODEL = 'a6p'/const DEVICE_MODEL = '${ DEVICE }'/" ./ui/src/pages/update/update.ts
+          sed -i "s/const DEVICE_MODEL = 'a6p'/const DEVICE_MODEL = '$DEVICE'/" ./ui/src/pages/update/update.ts
           cd ./ui
           sed -i "s/commonjs(),/commonjs(),require('@rollup\/plugin-typescript')(),/g" ./node_modules/aiot-vue-cli/src/libs/rollup.config.js
           sed -i "s/compiler.parseComponent(content, { pad: 'line' })/compiler.parse(content, { pad: 'line' }).descriptor/g" ./node_modules/aiot-vue-cli/web-loaders/falcon-vue-loader/lib/parser.js
