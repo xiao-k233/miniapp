@@ -8,9 +8,11 @@
     gap: 12px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #333333;
+    position: relative;
+    z-index: 1;
 }
 
 .update-status-container {
@@ -61,7 +63,7 @@
     gap: 8px;
     padding: 12px;
     background-color: rgba(220, 53, 69, 0.1);
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-top: 10px;
     border: 1px solid #dc3545;
 }
@@ -91,7 +93,7 @@
     gap: 8px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #333333;
 }
@@ -116,7 +118,7 @@
     gap: 12px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #333333;
 }
@@ -167,30 +169,31 @@
     gap: 8px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #333333;
 }
 
 .release-notes-title {
     font-size: 16px;
-    color: #ffffff; /* 改为白色 */
+    color: #ffffff;
     margin-bottom: 5px;
+    font-weight: bold;
 }
 
 .release-notes-content {
     flex: 1;
     min-height: 100px;
     max-height: 200px;
-    color: #ffffff; /* 强制白色 */
+    color: #ffffff !important; /* 强制白色 */
     font-size: 14px;
     line-height: 20px;
-    text-align: justify;
+    text-align: left; /* 改为左对齐 */
     word-wrap: break-word;
     overflow-wrap: break-word;
     padding: 10px;
     background-color: #0a0a0a;
-    border-radius: 8px; /* 增大圆角 */
+    border-radius: 8px;
     border: 1px solid #222222;
     white-space: pre-line;
 }
@@ -202,7 +205,7 @@
     gap: 12px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #333333;
 }
@@ -221,7 +224,7 @@
 .mirror-slider-scroller {
     height: 50px;
     background-color: #0a0a0a;
-    border-radius: 8px; /* 增大圆角 */
+    border-radius: 8px;
     border: 1px solid #222222;
     padding: 5px;
 }
@@ -240,9 +243,9 @@
     height: 36px;
     line-height: 36px;
     text-align: center;
-    border-radius: 8px; /* 增大圆角 */
+    border-radius: 8px;
     background-color: #222222;
-    color: #888888;
+    color: #ffffff !important; /* 确保文字可见 */
     font-size: 12px;
     border: 1px solid #333333;
     transition: all 0.2s ease;
@@ -253,9 +256,9 @@
 }
 
 .mirror-slider-item-selected {
-    background-color: #007acc;
-    color: #ffffff;
-    border-color: #007acc;
+    background-color: #007acc !important;
+    color: #ffffff !important;
+    border-color: #007acc !important;
     font-weight: bold;
 }
 
@@ -266,7 +269,7 @@
     justify-content: space-between;
     padding: 8px;
     background-color: #0a0a0a;
-    border-radius: 8px; /* 增大圆角 */
+    border-radius: 8px;
     border: 1px solid #222222;
 }
 
@@ -278,7 +281,7 @@
 .mirror-status {
     font-size: 11px;
     padding: 4px 8px;
-    border-radius: 6px; /* 增大圆角 */
+    border-radius: 6px;
     text-align: center;
 }
 
@@ -301,7 +304,7 @@
     gap: 12px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #333333;
 }
@@ -315,50 +318,51 @@
 }
 
 .operation-btn {
-    min-width: 90px;
-    height: 36px;
+    min-width: 100px;
+    height: 40px;
     font-size: 14px;
-    line-height: 36px;
+    line-height: 40px;
     text-align: center;
-    border-radius: 8px; /* 增大圆角 */
-    padding: 0 12px;
-    background-color: #222222;
-    color: #ffffff;
-    border: 1px solid #333333;
+    border-radius: 8px;
+    padding: 0 16px;
+    background-color: #007acc !important; /* 固定背景色 */
+    color: #ffffff !important; /* 固定文字颜色 */
+    border: 1px solid #007acc !important;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* 添加阴影，避免按钮消失 */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* 更明显的阴影 */
+    position: relative;
+    z-index: 10; /* 提高层级 */
 }
 
 .operation-btn:active {
-    background-color: #2a2a2a;
+    background-color: #006bb3 !important;
     transform: translateY(1px);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.operation-btn-primary {
-    background-color: #007acc;
-    border-color: #007acc;
+.operation-btn-success {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
 }
 
-.operation-btn-success {
-    background-color: #28a745;
-    border-color: #28a745;
+.operation-btn-success:active {
+    background-color: #218838 !important;
 }
 
 .operation-btn-danger {
-    background-color: #dc3545;
-    border-color: #dc3545;
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
 }
 
 .operation-btn-info {
-    background-color: #17a2b8;
-    border-color: #17a2b8;
+    background-color: #17a2b8 !important;
+    border-color: #17a2b8 !important;
 }
 
 .operation-btn-disabled {
-    opacity: 0.5;
-    background-color: #333333;
-    border-color: #444444;
+    opacity: 0.5 !important;
+    background-color: #333333 !important;
+    border-color: #444444 !important;
 }
 
 /* 使用说明卡片 */
@@ -368,7 +372,7 @@
     gap: 10px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #333333;
 }
@@ -388,7 +392,7 @@
     overflow-wrap: break-word;
     padding: 10px;
     background-color: #0a0a0a;
-    border-radius: 8px; /* 增大圆角 */
+    border-radius: 8px;
     border: 1px solid #222222;
 }
 
@@ -399,7 +403,7 @@
     gap: 8px;
     padding: 15px;
     background-color: #1a0a0a;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #dc3545;
 }
@@ -416,52 +420,6 @@
     line-height: 20px;
 }
 
-/* 按钮样式 */
-.btn {
-    min-width: 100px;
-    height: 40px;
-    line-height: 40px;
-    text-align: center;
-    border-radius: 8px; /* 增大圆角 */
-    padding: 0 16px;
-    font-size: 14px;
-    font-weight: bold;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* 添加阴影，避免按钮消失 */
-}
-
-.btn:active {
-    transform: translateY(1px);
-    opacity: 0.9;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.btn-primary {
-    background-color: #007acc;
-    color: #ffffff;
-    border-color: #007acc;
-}
-
-.btn-success {
-    background-color: #28a745;
-    color: #ffffff;
-    border-color: #28a745;
-}
-
-.btn-danger {
-    background-color: #dc3545;
-    color: #ffffff;
-    border-color: #dc3545;
-}
-
-.btn-disabled {
-    background-color: #333333;
-    color: #888888;
-    border-color: #444444;
-    opacity: 0.7;
-}
-
 /* 下载进度卡片 */
 .download-progress-card {
     display: flex;
@@ -469,7 +427,7 @@
     gap: 10px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 10px; /* 增大圆角 */
+    border-radius: 10px;
     margin-bottom: 10px;
     border: 1px solid #333333;
 }
@@ -478,6 +436,7 @@
     font-size: 16px;
     color: #17a2b8;
     margin-bottom: 5px;
+    font-weight: bold;
 }
 
 .download-progress-info {
@@ -485,6 +444,7 @@
     color: #ffffff;
     line-height: 20px;
     text-align: center;
+    font-weight: bold;
 }
 
 .download-progress-bar-container {
@@ -500,6 +460,63 @@
     background: linear-gradient(90deg, #17a2b8, #28a745);
     border-radius: 10px;
     transition: width 0.3s ease;
+}
+
+/* 按钮样式 - 修复显示问题 */
+.btn {
+    min-width: 100px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    border-radius: 8px;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 10;
+    color: #ffffff !important; /* 强制白色文字 */
+    text-decoration: none;
+}
+
+.btn:active {
+    transform: translateY(1px);
+    opacity: 0.9;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary {
+    background-color: #007acc !important;
+    color: #ffffff !important;
+    border-color: #007acc !important;
+}
+
+.btn-success {
+    background-color: #28a745 !important;
+    color: #ffffff !important;
+    border-color: #28a745 !important;
+}
+
+.btn-danger {
+    background-color: #dc3545 !important;
+    color: #ffffff !important;
+    border-color: #dc3545 !important;
+}
+
+.btn-disabled {
+    background-color: #333333 !important;
+    color: #888888 !important;
+    border-color: #444444 !important;
+    opacity: 0.7;
+}
+
+/* 修复所有按钮的显示问题 */
+.btn, .operation-btn, .mirror-slider-item {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: inline-block !important;
 }
 
 /* 图片图标样式 */
@@ -526,11 +543,4 @@
     font-size: 14px;
     color: #cccccc;
     flex: 1;
-}
-
-/* 修复按钮显示问题 - 确保所有按钮都有明显的背景和边框 */
-.btn, .operation-btn {
-    background-color: #222222 !important;
-    border: 1px solid #333333 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
 }
