@@ -17,6 +17,13 @@
 <text class="device-info-title">设备信息</text>
 <text class="device-info-content">型号: {{deviceModel}} | 版本: v{{currentVersion}}</text>
 </div>
+
+<!-- 设备不匹配警告 -->
+<div v-if="latestVersion && !deviceMatched" class="warning-card">
+<text class="warning-icon">⚠</text>
+<text class="warning-text">新版本 v{{latestVersion}} 不适用于当前设备 ({{deviceModel}})</text>
+<text v-if="otherDeviceModels.length > 0" class="warning-info">此更新适用于: {{otherDeviceModels.join(', ')}} 型号</text>
+</div>
 </div>
 
 <!-- 错误信息 -->
@@ -44,7 +51,7 @@
 <div class="mirror-status-info">
 <text class="mirror-current">当前源: {{currentMirror.name}}</text>
 <text :class="'mirror-status ' + (useMirror?'mirror-status-active':'mirror-status-disabled')">
-{{useMirror?'镜像加速':' 直接下载'}}
+{{useMirror?'✓ 镜像加速':'✗ 直接下载'}}
 </text>
 </div>
 </div>
@@ -64,7 +71,7 @@
 <text class="version-label">文件大小</text>
 <text class="version-value file-size">{{formattedFileSize}}</text>
 </div>
-<div v-if="currentDeviceFilename" class="version-line">
+<div v-if="deviceMatched && currentDeviceFilename" class="version-line">
 <text class="version-label">目标文件</text>
 <text class="version-value">{{currentDeviceFilename}}</text>
 </div>
@@ -86,6 +93,7 @@
 <text v-if="hasUpdate&&status==='available'" @click="downloadUpdate" class="operation-btn operation-btn-success">下载并安装</text>
 <text v-else-if="status==='downloading'" class="operation-btn operation-btn-disabled">正在下载...</text>
 <text v-else-if="status==='installing'" class="operation-btn operation-btn-disabled">正在安装...</text>
+<text v-else-if="latestVersion && !deviceMatched" class="operation-btn operation-btn-disabled">设备不匹配</text>
 <text v-else class="operation-btn operation-btn-disabled">暂无更新</text>
 
 <text @click="openGitHub" class="operation-btn operation-btn-info">GitHub页面</text>
@@ -98,11 +106,13 @@
 <text class="instructions-title">使用说明</text>
 <text class="instructions-content">
 1. 点击"检查更新"按钮获取最新版本信息
-2. 左右滑动选择镜像源，点击按钮切换
-3. 如果有新版本，点击"下载并安装更新"按钮
-4. 下载完成后会自动安装
-5. 安装完成后请重启应用
-6. 如果自动更新失败，可以手动下载安装
+2. 系统会自动检测是否匹配当前设备型号
+3. 只有匹配设备型号的更新才能安装
+4. 左右滑动选择镜像源，点击按钮切换
+5. 如果有匹配的新版本，点击"下载并安装更新"按钮
+6. 下载完成后会自动安装
+7. 安装完成后请重启应用
+8. 如果自动更新失败，可以手动下载安装
 </text>
 </div>
 
