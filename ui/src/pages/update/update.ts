@@ -24,7 +24,7 @@ export type UpdateOptions = {};
 
 // GitHub配置
 const GITHUB_OWNER = 'penosext';
-const GITHUB_REPO = 'miniapp_dev';
+const GITHUB_REPO = 'miniapp';
 
 // 当前版本号（每次发布需要更新）
 const CURRENT_VERSION = '1.2.4';
@@ -138,7 +138,7 @@ const update = defineComponent({
             downloadProgress: 0,
             downloadProgressText: '',
             downloadTimer: null as any,
-            downloadProcessPid: 0,
+            isDownloading: false,
         };
     },
 
@@ -433,7 +433,7 @@ const update = defineComponent({
 
         // 更新下载进度
         async updateDownloadProgress() {
-            if (!this.downloadPath || !Shell) return;
+            if (!this.downloadPath || !Shell || !this.isDownloading) return;
             
             try {
                 // 检查文件是否存在并获取大小
@@ -452,6 +452,12 @@ const update = defineComponent({
                 
                 console.log(`下载进度: ${this.downloadProgressText}`);
                 
+                // 如果下载完成，停止定时器
+                if (currentSize >= this.fileSize && this.fileSize > 0) {
+                    this.clearDownloadProgress();
+                    this.isDownloading = false;
+                }
+                
             } catch (error) {
                 console.warn('获取下载进度失败:', error);
             }
@@ -463,13 +469,10 @@ const update = defineComponent({
                 clearInterval(this.downloadTimer);
                 this.downloadTimer = null;
             }
-            this.downloadProcessPid = 0;
-            this.downloadedSize = 0;
-            this.downloadProgress = 0;
-            this.downloadProgressText = '';
+            this.isDownloading = false;
         },
 
-        // 下载更新
+        // 下载更新 - 使用更简单的方法
         async downloadUpdate() {
             if (!this.shellInitialized || !Shell) {
                 showError('Shell模块未初始化');
@@ -492,6 +495,9 @@ const update = defineComponent({
             
             this.status = 'downloading';
             this.clearDownloadProgress(); // 清理之前的进度
+            this.downloadedSize = 0;
+            this.downloadProgress = 0;
+            this.downloadProgressText = '';
             
             try {
                 showLoading(`正在下载 ${this.deviceModel} 型号的更新...`);
@@ -520,63 +526,20 @@ const update = defineComponent({
                 console.log('文件总大小:', this.fileSize, 'bytes');
                 
                 // 启动进度监控（每秒更新一次）
+                this.isDownloading = true;
                 this.downloadTimer = setInterval(async () => {
                     await this.updateDownloadProgress();
                 }, 1000);
                 
-                // 使用curl下载文件（后台执行并获取PID）
-                const downloadCmd = `curl -k -L "${finalDownloadUrl}" -o "${this.downloadPath}" & echo $!`;
+                // 使用curl下载文件（简单版本，不使用后台进程）
+                const downloadCmd = `curl -k -L "${finalDownloadUrl}" -o "${this.downloadPath}"`;
                 console.log('执行命令:', downloadCmd);
                 
-                // 获取进程ID
-                const pidResult = await Shell.exec(downloadCmd);
-                this.downloadProcessPid = parseInt(pidResult.trim()) || 0;
+                // 执行下载命令
+                await Shell.exec(downloadCmd);
                 
-                if (this.downloadProcessPid > 0) {
-                    console.log(`下载进程PID: ${this.downloadProcessPid}`);
-                    
-                    // 等待下载完成
-                    let downloadComplete = false;
-                    let retryCount = 0;
-                    const maxRetries = 600; // 最多等待10分钟（600秒）
-                    
-                    while (!downloadComplete && retryCount < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        
-                        try {
-                            // 检查进程是否还在运行
-                            const checkPidCmd = `ps -p ${this.downloadProcessPid} > /dev/null 2>&1 && echo "running" || echo "stopped"`;
-                            const pidStatus = await Shell.exec(checkPidCmd);
-                            
-                            if (pidStatus.trim() === 'stopped') {
-                                downloadComplete = true;
-                                console.log('下载进程已结束');
-                            }
-                            
-                            // 同时更新进度
-                            await this.updateDownloadProgress();
-                            
-                        } catch (error) {
-                            console.warn('检查下载进程状态失败:', error);
-                        }
-                        
-                        retryCount++;
-                    }
-                    
-                    if (!downloadComplete) {
-                        console.warn('下载可能超时');
-                        // 强制结束进程
-                        try {
-                            await Shell.exec(`kill -9 ${this.downloadProcessPid} 2>/dev/null || true`);
-                        } catch (e) {
-                            console.warn('结束下载进程失败:', e);
-                        }
-                    }
-                } else {
-                    // 如果没有获取到PID，直接执行命令
-                    await Shell.exec(`curl -k -L "${finalDownloadUrl}" -o "${this.downloadPath}"`);
-                    await this.updateDownloadProgress();
-                }
+                // 等待一下确保文件已写入
+                await new Promise(resolve => setTimeout(resolve, 500));
                 
                 // 清理进度监控
                 this.clearDownloadProgress();
