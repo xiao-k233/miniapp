@@ -1,23 +1,26 @@
 @import url('../../styles/section.less');
 
-/* 卡片样式 - 与 about 页面保持一致 */
+/* 卡片样式 - 与 about 页面保持一致，增加圆角弧度 */
 .info-card {
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 15px;
     background-color: #111111;
-    border-radius: 5px;
+    border-radius: 12px; /* 增加圆角弧度 */
     margin-bottom: 10px;
     border: 1px solid #333333;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); /* 添加轻微阴影增强立体感 */
 }
 
 .operations-card {
     display: flex;
     flex-direction: column;
     background-color: #111111;
-    border-radius: 5px;
+    border-radius: 12px; /* 增加圆角弧度 */
     border: 1px solid #333333;
+    overflow: hidden; /* 确保子元素不会溢出圆角 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); /* 添加轻微阴影增强立体感 */
 }
 
 /* 状态行 */
@@ -37,9 +40,10 @@
 .status-value {
     font-size: 14px;
     font-weight: bold;
-    padding: 4px 10px;
-    border-radius: 3px;
+    padding: 8px 12px; /* 增加内边距 */
+    border-radius: 8px; /* 增加圆角弧度 */
     text-align: center;
+    min-width: 100px;
 }
 
 /* 状态颜色 */
@@ -75,6 +79,7 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 6px;
+    padding: 6px 0;
 }
 
 .version-label {
@@ -86,15 +91,20 @@
 .version-text {
     font-size: 14px;
     color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 6px; /* 增加圆角弧度 */
+    background-color: #222222;
 }
 
 .version-new {
     color: #28a745;
     font-weight: bold;
+    background-color: #1a4a2e;
 }
 
 .version-old {
     color: #ffc107;
+    background-color: #4a3e1a;
 }
 
 /* 卡片副标题 */
@@ -103,6 +113,9 @@
     color: #cccccc;
     margin-bottom: 10px;
     text-align: center;
+    padding: 8px;
+    background-color: #222222;
+    border-radius: 8px; /* 增加圆角弧度 */
 }
 
 /* 镜像源相关样式 */
@@ -114,7 +127,7 @@
     width: 100%;
     height: 50px;
     background-color: #222222;
-    border-radius: 5px;
+    border-radius: 10px; /* 增加圆角弧度 */
     border: 1px solid #333333;
     padding: 0 5px;
 }
@@ -132,12 +145,18 @@
     height: 35px;
     line-height: 35px;
     text-align: center;
-    border-radius: 4px;
+    border-radius: 8px; /* 增加圆角弧度 */
     background-color: #222222;
     color: #cccccc;
     font-size: 12px;
     margin-right: 8px;
     border: 1px solid #444444;
+}
+
+.mirror-slider-item:active {
+    background-color: #005a99; /* 点击回亮效果 */
+    opacity: 0.8;
+    transform: scale(0.98); /* 轻微缩小效果 */
 }
 
 .mirror-slider-item-selected {
@@ -146,15 +165,19 @@
     border-color: #007acc;
 }
 
+.mirror-slider-item-selected:active {
+    background-color: #005a99; /* 选中状态也有回亮效果 */
+}
+
 .mirror-status-info {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     margin-top: 10px;
-    padding: 8px;
+    padding: 12px;
     background-color: #1a1a1a;
-    border-radius: 3px;
+    border-radius: 8px; /* 增加圆角弧度 */
 }
 
 .mirror-current {
@@ -164,8 +187,8 @@
 
 .mirror-status {
     font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 3px;
+    padding: 6px 12px; /* 增加内边距 */
+    border-radius: 6px; /* 增加圆角弧度 */
     text-align: center;
 }
 
@@ -186,8 +209,8 @@
     max-height: 200px;
     background-color: #0a0a0a;
     border: 1px solid #222222;
-    border-radius: 3px;
-    padding: 10px;
+    border-radius: 8px; /* 增加圆角弧度 */
+    padding: 12px;
 }
 
 .release-content {
@@ -204,6 +227,9 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 8px;
+    padding: 8px;
+    background-color: #1a1a1a;
+    border-radius: 8px; /* 增加圆角弧度 */
 }
 
 .file-label {
@@ -219,12 +245,6 @@
     word-wrap: break-word;
 }
 
-/* 图片图标样式 - 与 about 页面保持一致 */
-.image-icon {
-    width: 20px;
-    height: 20px;
-}
-
 /* 操作按钮行 */
 .action-line {
     display: flex;
@@ -233,25 +253,21 @@
 }
 
 .action-btn {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
+    padding: 12px 24px; /* 增加内边距 */
     background-color: #007acc;
-    border-radius: 5px;
+    border-radius: 10px; /* 增加圆角弧度 */
     border: 1px solid #007acc;
-}
-
-.action-btn:active {
-    background-color: #005a99;
-    opacity: 0.8;
-}
-
-.btn-text {
     font-size: 14px;
     color: #ffffff;
     font-weight: bold;
+    text-align: center;
+    min-width: 120px;
+}
+
+.action-btn:active {
+    background-color: #005a99; /* 点击回亮效果 */
+    opacity: 0.8;
+    transform: scale(0.98); /* 轻微缩小效果 */
 }
 
 /* 链接项目样式（可点击）- 与 about 页面保持一致 */
@@ -259,13 +275,14 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
-    padding: 12px;
+    padding: 14px 12px; /* 增加内边距 */
     border-bottom: 1px solid #333333;
+    min-height: 50px; /* 最小高度确保触摸区域 */
 }
 
 .link-item:active {
-    background-color: #222222;
+    background-color: #222222; /* 点击回亮效果 */
+    opacity: 0.8;
 }
 
 /* 文本项目样式（不可点击）- 与 about 页面保持一致 */
@@ -273,21 +290,23 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
-    padding: 12px;
+    padding: 14px 12px; /* 增加内边距 */
     border-bottom: 1px solid #333333;
+    min-height: 50px; /* 最小高度确保触摸区域 */
 }
 
 .link-text {
     font-size: 14px;
     color: #cccccc;
     flex: 1;
+    font-weight: 500;
 }
 
 .text-content {
     font-size: 14px;
     color: #888888;
     flex: 1;
+    font-weight: 500;
 }
 
 /* 使用说明文本 */
@@ -297,4 +316,7 @@
     line-height: 20px;
     white-space: pre-line;
     text-align: justify;
+    padding: 12px;
+    background-color: #1a1a1a;
+    border-radius: 8px; /* 增加圆角弧度 */
 }
