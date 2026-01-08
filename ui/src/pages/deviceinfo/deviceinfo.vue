@@ -15,7 +15,7 @@
               class="refresh-btn" 
               @click="refreshInfo"
             >
-              <text class="refresh-icon">{{ isRefreshing ? '⟳' : '↻' }}</text>
+              <image class="image-icon" resize="contain" :src="require('./images/refresh.png')" />
             </div>
           </div>
         </div>
