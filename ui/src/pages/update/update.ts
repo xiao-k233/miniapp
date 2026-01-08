@@ -24,7 +24,7 @@ export type UpdateOptions = {};
 
 // GitHub配置
 const GITHUB_OWNER = 'penosext';
-const GITHUB_REPO = 'miniapp';
+const GITHUB_REPO = 'miniapp_dev';
 
 // 当前版本号（每次发布需要更新）
 const CURRENT_VERSION = '1.2.4';
