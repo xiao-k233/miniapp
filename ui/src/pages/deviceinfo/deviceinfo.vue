@@ -15,8 +15,8 @@
               class="refresh-btn" 
               @click="refreshInfo"
             >
-              <!-- 修改这里：将文字图标改为图片图标 -->
-              <image class="refresh-icon" resize="contain" :src="require('./images/refresh.png')" />
+              <!-- 修改为图片按钮 -->
+              <image class="refresh-icon" :src="require('./images/refresh.png')" />
             </div>
           </div>
         </div>
@@ -102,3 +102,12 @@
     </div>
   </div>
 </template>
+
+<style lang="less" scoped>
+@import url('deviceinfo.less');
+</style>
+
+<script>
+import deviceinfo from './deviceinfo';
+export default deviceinfo;
+</script>
