@@ -30,7 +30,7 @@ const COMMANDS = {
   IP_ADDRESS: {
     id: 'ip_address',
     name: 'IP地址',
-    command: 'ip addr show wlan0 2>/dev/null | grep -m1 "inet " | awk "{print $2}" | cut -d/ -f1',
+    command: 'ip addr show wlan0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}'',
     parser: (output: string) => output.trim() || '未获取到IP地址'
   },
   
