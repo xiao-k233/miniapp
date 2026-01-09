@@ -26,12 +26,34 @@ interface DeviceInfo {
 
 // 命令配置
 const COMMANDS = {
-  // IP地址相关命令
+  // IP地址相关命令 - 增强版，先尝试wlan0，再尝试eth0
   IP_ADDRESS: {
     id: 'ip_address',
     name: 'IP地址',
-    command: 'ip addr show wlan0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}'',
-    parser: (output: string) => output.trim() || '未获取到IP地址'
+    command: `
+      # 先尝试wlan0接口
+      WLAN0_IP=$(ip addr show wlan0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}')
+      if [ -n "$WLAN0_IP" ]; then
+        echo "$WLAN0_IP"
+      else
+        # 再尝试eth0接口
+        ETH0_IP=$(ip addr show eth0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}')
+        if [ -n "$ETH0_IP" ]; then
+          echo "$ETH0_IP"
+        else
+          # 最后尝试所有接口
+          ip route get 1.2.3.4 2>/dev/null | awk '{print $7}' | head -1
+        fi
+      fi
+    `,
+    parser: (output: string) => {
+      const trimmed = output.trim();
+      // 验证是否为IP地址格式
+      if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(trimmed)) {
+        return trimmed;
+      }
+      return '未获取到IP地址';
+    }
   },
   
   // 设备ID相关命令
@@ -39,7 +61,10 @@ const COMMANDS = {
     id: 'device_id',
     name: '设备ID',
     command: 'cat /proc/sys/kernel/random/uuid || cat /etc/machine-id',
-    parser: (output: string) => output.trim().substring(0, 32) || '未知'
+    parser: (output: string) => {
+      const trimmed = output.trim();
+      return trimmed && trimmed.length > 0 ? trimmed.substring(0, 32) : '未知';
+    }
   },
   
   // 系统信息相关命令
