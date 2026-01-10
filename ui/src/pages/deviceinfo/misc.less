@@ -1,0 +1,64 @@
+/* misc.less - 扁平化主题样式 */
+@import url('../../styles/section.less');
+
+.container {
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+}
+
+.scroll-area {
+  padding: 12px;
+}
+
+/* 区块样式 */
+.block {
+  margin-bottom: 8px;
+}
+
+/* 按钮行布局 */
+.btn-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* 扁平化按钮项 */
+.btn-item {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+  background-color: #111111;
+  border: 1px solid #333333;
+  border-radius: 4px;
+}
+
+.btn-item:active {
+  background-color: #222222;
+}
+
+/* 宽按钮 */
+.btn-item.wide {
+  flex: none;
+  width: 100%;
+}
+
+/* 按钮文字 */
+.btn-text {
+  font-size: 14px;
+  color: #cccccc;
+  text-align: center;
+}
+
+/* 功能说明文本 */
+.function-description {
+  font-size: 12px;
+  color: #888888;
+  line-height: 16px;
+  text-align: center;
+  margin-top: 4px;
+}
