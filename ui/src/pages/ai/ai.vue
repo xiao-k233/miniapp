@@ -42,14 +42,21 @@
                 </div>
             </scroller>
 
-            <!-- 侧边按钮 -->
-            <div class="side-buttons">
-                <text @click="openHistory"
-                    :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">历</text>
-                <text @click="openMessageNavigation"
-                    :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">导</text>
-                <text @click="openSettings"
-                    :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">设</text>
+            <!-- 侧边栏 - 可滚动 -->
+            <div class="sidebar-container">
+                <scroller class="sidebar-scroller" scroll-direction="vertical" :show-scrollbar="true">
+                    <text @click="openHistory"
+                        :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">历</text>
+                    <text @click="openMessageNavigation"
+                        :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">导</text>
+                    <text @click="openSettings"
+                        :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">设</text>
+                    <!-- 添加分割线 -->
+                    <div class="divider"></div>
+                    <!-- 可以添加更多按钮，例如清除对话等 -->
+                    <text v-if="messages.length > 0" @click="clearConversation"
+                        :class="'square-btn extra-side-button' + (isStreaming ? ' square-btn-disabled' : '')">清</text>
+                </scroller>
             </div>
         </div>
 
@@ -86,6 +93,15 @@ export default {
     ...ai,
     components: {
         ToastMessage
+    },
+    methods: {
+        // 添加清除对话的方法
+        clearConversation() {
+            if (this.isStreaming) return;
+            // 这里可以添加清除对话的逻辑
+            // 例如：this.messages = [];
+            // 注意：这只是一个示例，实际清除需要调用AI的相应方法
+        }
     }
 }
 </script>
