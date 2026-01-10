@@ -1,15 +1,29 @@
+/* ai.less - 扁平化主题样式 */
 @import url('../../styles/section.less');
 
+/* 扁平化容器 */
+.container {
+    background-color: #121212;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+/* 侧边按钮扁平化 */
 .side-buttons {
     background-color: #111111;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 5px;
-    padding-bottom: 5px;
+    padding: 5px;
     gap: 5px;
+    border-radius: 5px;
+    margin: 10px;
+    box-shadow: none;
 }
 
+/* 方形按钮扁平化 */
 .square-btn {
     width: 28px;
     height: 28px;
@@ -19,6 +33,9 @@
     font-size: 16px;
     line-height: 28px;
     border-radius: 3px;
+    border: none;
+    box-shadow: none;
+    transition: background-color 0.2s;
 }
 
 .square-btn-primary {
@@ -32,69 +49,173 @@
 .square-btn-disabled {
     background-color: #444444;
     color: #888888;
+    opacity: 0.7;
 }
 
+/* 消息滚动区域 */
 .messages-scroller {
     flex: 1;
-    padding: 5px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    background-color: #121212;
+    border-radius: 5px;
+    margin: 10px;
 }
 
+/* 消息样式扁平化 */
 .message {
     max-width: 80%;
-    padding: 4px 8px;
-    border-radius: 3px;
-    line-height: 20px;
-    font-size: 18px;
-    margin-bottom: 2px;
+    padding: 8px 12px;
+    border-radius: 5px;
+    line-height: 22px;
+    font-size: 16px;
+    margin-bottom: 5px;
     color: #ffffff;
+    border: 1px solid transparent;
+    box-shadow: none;
 }
 
-// user
+/* 用户消息 */
 .message-0 {
     background-color: #007acc;
     align-self: flex-end;
+    border: 1px solid #005a9e;
 }
 
-// assistant
+/* 助手消息 */
 .message-1 {
-    background-color: #333333;
+    background-color: #1a1a1a;
     align-self: flex-start;
+    border: 1px solid #333333;
 }
 
-// system
+/* 系统消息 */
 .message-2 {
     background-color: #28a745;
     align-self: center;
+    border: 1px solid #1e7e34;
 }
 
+/* 消息操作区 */
 .message-actions {
+    display: flex;
     flex-direction: row;
     align-items: center;
-    margin-top: 5px;
-    gap: 5px;
+    margin-top: 8px;
+    gap: 8px;
+    padding: 5px;
+    background-color: #111111;
+    border-radius: 3px;
 }
 
 .message-actions-user {
+    display: flex;
     flex-direction: row;
     align-items: center;
-    margin-top: 5px;
-    gap: 5px;
+    margin-top: 8px;
+    gap: 8px;
+    padding: 5px;
+    background-color: #111111;
+    border-radius: 3px;
     justify-content: flex-end;
 }
 
 .action-text {
     height: 24px;
-    font-size: 16px;
-    color: #ffffff;
+    font-size: 14px;
+    color: #cccccc;
     line-height: 24px;
+    padding: 0 8px;
+    background-color: #222222;
+    border-radius: 3px;
 }
 
+/* 停止原因警告 */
 .stop-reason-warning {
-    font-size: 14px;
+    font-size: 12px;
     color: #ffc107;
     margin-top: 2px;
     margin-bottom: 2px;
+    padding: 2px 6px;
+    background-color: #332b00;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+/* 输入区域 */
+.item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 10px;
+    background-color: #111111;
+    border-top: 1px solid #333333;
+    gap: 10px;
+}
+
+.item-input {
+    flex: 1;
+    height: 36px;
+    padding: 0 10px;
+    background-color: #222222;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 36px;
+    border-radius: 3px;
+    border: 1px solid #333333;
+    box-shadow: none;
+}
+
+.item-input-disabled {
+    background-color: #1a1a1a;
+    color: #888888;
+    border: 1px solid #2a2a2a;
+}
+
+/* 卡片样式 - 与about页面一致 */
+.info-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px;
+    background-color: #111111;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border: 1px solid #333333;
+}
+
+.text-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border-bottom: 1px solid #333333;
+}
+
+.link-text {
+    font-size: 14px;
+    color: #cccccc;
+    flex: 1;
+}
+
+/* 扁平化滚动条 */
+scroller::-webkit-scrollbar {
+    width: 6px;
+}
+
+scroller::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+
+scroller::-webkit-scrollbar-thumb {
+    background: #333333;
+    border-radius: 3px;
+}
+
+scroller::-webkit-scrollbar-thumb:hover {
+    background: #444444;
 }

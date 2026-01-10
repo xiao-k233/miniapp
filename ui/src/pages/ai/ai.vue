@@ -18,12 +18,12 @@
 -->
 
 <template>
-    <div>
-        <div class="container" style="display: flex; flex-direction: column;">
-            <div style="flex: 1; display: flex; flex-direction: row;">
+    <div class="container">
+        <div class="content-wrapper">
+            <div style="flex: 1; display: flex; flex-direction: row; height: 100%;">
                 <scroller ref="messageScroller" class="messages-scroller" scroll-direction="vertical"
                     :show-scrollbar="true">
-                    <div v-for="message in displayMessages" :key="message.id">
+                    <div v-for="message in displayMessages" :key="message.id" class="message-container">
                         <text :class="'message message-' + message.role">{{ message.content }}</text>
                         <text v-if="![0, 1, 6].includes(message.stopReason)" class="stop-reason-warning">{{
                             getStopReasonText(message.stopReason) }}</text>
