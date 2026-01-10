@@ -19,13 +19,149 @@ interface DeviceInfo {
     used?: string;
     free?: string;
   };
-
-  // ✅ 新增：电池电量百分比
   batteryPercent?: string;
-
   timestamp?: number;
   error?: string;
 }
+
+// 命令配置
+const COMMANDS = {
+  // IP地址相关命令 - 增强版，先尝试wlan0，再尝试eth0
+  IP_ADDRESS: {
+    id: 'ip_address',
+    name: 'IP地址',
+    command: `
+      # 先尝试wlan0接口
+      WLAN0_IP=$(ip addr show wlan0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}')
+      if [ -n "$WLAN0_IP" ]; then
+        echo "$WLAN0_IP"
+      else
+        # 再尝试eth0接口
+        ETH0_IP=$(ip addr show eth0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}')
+        if [ -n "$ETH0_IP" ]; then
+          echo "$ETH0_IP"
+        else
+          # 最后尝试所有接口
+          ip route get 1.2.3.4 2>/dev/null | awk '{print $7}' | head -1
+        fi
+      fi
+    `,
+    parser: (output: string) => {
+      const trimmed = output.trim();
+      // 验证是否为IP地址格式
+      if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(trimmed)) {
+        return trimmed;
+      }
+      return '未获取到IP地址';
+    }
+  },
+  
+  // 设备ID相关命令
+  DEVICE_ID: {
+    id: 'device_id',
+    name: '设备ID',
+    command: 'cat /proc/sys/kernel/random/uuid || cat /etc/machine-id',
+    parser: (output: string) => {
+      const trimmed = output.trim();
+      return trimmed && trimmed.length > 0 ? trimmed.substring(0, 32) : '未知';
+    }
+  },
+  
+  // 系统信息相关命令
+  SYSTEM_INFO: {
+    id: 'system_info',
+    name: '系统信息',
+    commands: [
+      {
+        id: 'model',
+        name: '设备型号',
+        command: 'uname -m',
+        parser: (output: string) => output.trim() || '未知'
+      },
+      {
+        id: 'version',
+        name: '内核版本',
+        command: 'uname -r',
+        parser: (output: string) => output.trim() || '未知'
+      },
+      {
+        id: 'kernel',
+        name: '系统版本',
+        command: 'uname -s',
+        parser: (output: string) => output.trim() || '未知'
+      }
+    ]
+  },
+  
+  // 存储信息相关命令
+  STORAGE_INFO: {
+    id: 'storage_info',
+    name: '存储信息',
+    command: 'df -h /',
+    parser: (output: string) => {
+      const lines = output.trim().split('\n');
+      if (lines.length > 1) {
+        const parts = lines[1].split(/\s+/).filter(Boolean);
+        if (parts.length >= 6) {
+          return {
+            total: parts[1] || '未知',
+            used: parts[2] || '未知',
+            free: parts[3] || '未知'
+          };
+        } else if (parts.length >= 5) {
+          return {
+            total: parts[0] || '未知',
+            used: parts[1] || '未知',
+            free: parts[2] || '未知'
+          };
+        }
+      }
+      return { total: '格式错误', used: '格式错误', free: '格式错误' };
+    }
+  },
+  
+  // 电池电量相关命令
+  BATTERY_PERCENT: {
+    id: 'battery_percent',
+    name: '电池电量',
+    command: 'hal-battery',
+    parser: (output: string) => {
+      const match = output.match(/capacity:(\d+)/);
+      return match ? `${match[1]}%` : '未找到容量信息';
+    }
+  },
+  
+  // 网络接口相关命令
+  NETWORK_INFO: {
+    id: 'network_info',
+    name: '网络接口',
+    command: 'ip -4 addr show',
+    parser: (output: string) => output.trim() || '无网络接口信息'
+  }
+};
+
+// 日志管理器
+const Logger = {
+  log: (message: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${message}`, data || '');
+  },
+  
+  error: (message: string, error?: any) => {
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] ❌ ${message}`, error || '');
+  },
+  
+  warn: (message: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    console.warn(`[${timestamp}] ⚠️ ${message}`, data || '');
+  },
+  
+  success: (message: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ✅ ${message}`, data || '');
+  }
+};
 
 export default defineComponent({
   data() {
@@ -38,6 +174,20 @@ export default defineComponent({
       
       deviceInfo: {} as DeviceInfo,
       shellModule: null as any,
+      
+      // 执行日志
+      executionLog: [] as Array<{
+        id: string;
+        name: string;
+        command: string;
+        output: string;
+        result: any;
+        success: boolean;
+        timestamp: number;
+      }>,
+      
+      // 错误详情
+      errorDetails: ''
     };
   },
 
@@ -59,6 +209,8 @@ export default defineComponent({
         await this.fetchDeviceInfo();
       } catch (error: any) {
         this.deviceInfo.error = `加载失败: ${error.message || '未知错误'}`;
+        this.errorDetails = JSON.stringify(error, null, 2);
+        Logger.error('initializeAndLoad error:', error);
       } finally {
         this.isLoading = false;
         this.isRefreshing = false;
@@ -66,96 +218,262 @@ export default defineComponent({
     },
     
     async initializeShell() {
+      Logger.log('开始初始化Shell模块');
+      
       if (!Shell || typeof Shell.initialize !== 'function') {
-        throw new Error('Shell模块不可用');
+        const error = 'Shell模块不可用';
+        Logger.error('Shell模块检查失败', error);
+        throw new Error(error);
       }
-      await Shell.initialize();
-      this.shellModule = Shell;
-      this.shellInitialized = true;
+      
+      try {
+        Logger.log('调用Shell.initialize()');
+        await Shell.initialize();
+        this.shellModule = Shell;
+        this.shellInitialized = true;
+        Logger.success('Shell模块初始化成功');
+        
+        // 测试Shell是否可用
+        Logger.log('测试Shell模块可用性');
+        const testResult = await Shell.exec('echo "Shell test"');
+        Logger.success('Shell测试命令执行成功', testResult.trim());
+      } catch (error: any) {
+        Logger.error('Shell模块初始化失败:', error);
+        this.shellInitialized = false;
+        this.shellModule = null;
+        throw new Error(`Shell初始化失败: ${error.message || '未知错误'}`);
+      }
+    },
+    
+    async executeCommand(commandId: string, commandName: string, commandString: string) {
+      const logEntry = {
+        id: commandId,
+        name: commandName,
+        command: commandString,
+        output: '',
+        result: null as any,
+        success: false,
+        timestamp: Date.now()
+      };
+      
+      try {
+        Logger.log(`[${commandId}] 执行命令`, commandString);
+        
+        // 检查Shell状态
+        if (!this.shellModule || !this.shellInitialized) {
+          Logger.warn(`[${commandId}] Shell未初始化，尝试重新初始化`);
+          await this.initializeShell();
+        }
+        
+        const output = await Shell.exec(commandString);
+        logEntry.output = output;
+        logEntry.result = output.trim();
+        logEntry.success = true;
+        
+        Logger.success(`[${commandId}] 命令执行成功`, output.trim());
+      } catch (error: any) {
+        logEntry.output = error.message || '命令执行失败';
+        logEntry.result = null;
+        logEntry.success = false;
+        
+        Logger.error(`[${commandId}] 命令执行失败`, {
+          command: commandString,
+          error: error.message,
+          stack: error.stack
+        });
+        
+        throw error;
+      } finally {
+        this.executionLog.push(logEntry);
+      }
+      
+      return logEntry.output;
     },
     
     async fetchDeviceInfo() {
-      if (!this.shellInitialized) {
-        throw new Error('Shell未初始化');
-      }
-
-      this.deviceInfo = { timestamp: Date.now() };
-
-      /* ========== 1. IP 地址（原样保留） ========== */
+      Logger.log('开始获取设备信息');
+      
+      // 保存当前设备信息（用于失败时回滚）
+      const previousInfo = { ...this.deviceInfo };
+      
       try {
-        const ipResult = await Shell.exec(
-          "ip addr show wlan0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1"
-        );
-        this.deviceInfo.ipAddress = ipResult.trim() || '未获取到IP地址';
-      } catch {
-        this.deviceInfo.ipAddress = '获取失败';
-      }
-
-      /* ========== 2. 设备 ID ========== */
-      try {
-        const deviceIdResult = await Shell.exec(
-          'cat /proc/sys/kernel/random/uuid || cat /etc/machine-id'
-        );
-        this.deviceInfo.deviceId = deviceIdResult.trim().substring(0, 32);
-      } catch {
-        this.deviceInfo.deviceId = '未知';
-      }
-
-      /* ========== 3. 系统信息 ========== */
-      try {
-        const model = (await Shell.exec('uname -m')).trim();
-        const version = (await Shell.exec('uname -r')).trim();
-        const kernel = (await Shell.exec('uname -s')).trim();
-        this.deviceInfo.systemInfo = { model, version, kernel };
-      } catch {
-        this.deviceInfo.systemInfo = { model: '未知', version: '未知', kernel: '未知' };
-      }
-
-      /* ========== 4. 网络接口 ========== */
-      try {
-        this.deviceInfo.networkInfo = {
-          interfaces: (await Shell.exec('ip -4 addr show')).trim()
-        };
-      } catch {
-        this.deviceInfo.networkInfo = { interfaces: '获取失败' };
-      }
-
-      /* ========== 5. 存储信息 ========== */
-      try {
-        const df = await Shell.exec('df -h /');
-        const parts = df.split('\n')[1].split(/\s+/);
-        this.deviceInfo.storageInfo = {
-          total: parts[1],
-          used: parts[2],
-          free: parts[3]
-        };
-      } catch {
-        this.deviceInfo.storageInfo = { total: '未知', used: '未知', free: '未知' };
-      }
-
-      /* ========== 6. ✅ 电池电量（新增） ========== */
-      try {
-        const batteryOutput = await Shell.exec('hal-battery');
-        const match = batteryOutput.match(/capacity:(\d+)/);
-        this.deviceInfo.batteryPercent = match ? `${match[1]}%` : '未知';
-      } catch {
-        this.deviceInfo.batteryPercent = '获取失败';
+        // 检查Shell状态
+        if (!this.shellInitialized || !this.shellModule) {
+          Logger.warn('Shell未初始化，重新初始化');
+          await this.initializeShell();
+        }
+        
+        this.deviceInfo = { timestamp: Date.now() };
+        this.executionLog = [];
+        
+        // IP地址
+        try {
+          const ipOutput = await this.executeCommand(
+            COMMANDS.IP_ADDRESS.id,
+            COMMANDS.IP_ADDRESS.name,
+            COMMANDS.IP_ADDRESS.command
+          );
+          this.deviceInfo.ipAddress = COMMANDS.IP_ADDRESS.parser(ipOutput);
+          Logger.success(`[${COMMANDS.IP_ADDRESS.id}] 解析成功`, this.deviceInfo.ipAddress);
+        } catch (error) {
+          this.deviceInfo.ipAddress = '获取失败';
+          Logger.error(`[${COMMANDS.IP_ADDRESS.id}] 获取失败，使用默认值`);
+        }
+        
+        // 设备ID
+        try {
+          const deviceIdOutput = await this.executeCommand(
+            COMMANDS.DEVICE_ID.id,
+            COMMANDS.DEVICE_ID.name,
+            COMMANDS.DEVICE_ID.command
+          );
+          this.deviceInfo.deviceId = COMMANDS.DEVICE_ID.parser(deviceIdOutput);
+          Logger.success(`[${COMMANDS.DEVICE_ID.id}] 解析成功`, this.deviceInfo.deviceId);
+        } catch (error) {
+          this.deviceInfo.deviceId = '获取失败';
+          Logger.error(`[${COMMANDS.DEVICE_ID.id}] 获取失败，使用默认值`);
+        }
+        
+        // 系统信息
+        try {
+          this.deviceInfo.systemInfo = {
+            model: '未知',
+            version: '未知',
+            kernel: '未知'
+          };
+          
+          for (const cmd of COMMANDS.SYSTEM_INFO.commands) {
+            try {
+              const output = await this.executeCommand(
+                `${COMMANDS.SYSTEM_INFO.id}_${cmd.id}`,
+                cmd.name,
+                cmd.command
+              );
+              const result = cmd.parser(output);
+              
+              if (cmd.id === 'model') this.deviceInfo.systemInfo.model = result;
+              else if (cmd.id === 'version') this.deviceInfo.systemInfo.version = result;
+              else if (cmd.id === 'kernel') this.deviceInfo.systemInfo.kernel = result;
+              
+              Logger.success(`[${COMMANDS.SYSTEM_INFO.id}_${cmd.id}] 解析成功`, result);
+            } catch (error) {
+              Logger.error(`[${COMMANDS.SYSTEM_INFO.id}_${cmd.id}] 获取失败，使用默认值`);
+            }
+          }
+        } catch (error) {
+          this.deviceInfo.systemInfo = { model: '获取失败', version: '获取失败', kernel: '获取失败' };
+          Logger.error(`[${COMMANDS.SYSTEM_INFO.id}] 整体获取失败`);
+        }
+        
+        // 存储信息
+        try {
+          const storageOutput = await this.executeCommand(
+            COMMANDS.STORAGE_INFO.id,
+            COMMANDS.STORAGE_INFO.name,
+            COMMANDS.STORAGE_INFO.command
+          );
+          this.deviceInfo.storageInfo = COMMANDS.STORAGE_INFO.parser(storageOutput);
+          Logger.success(`[${COMMANDS.STORAGE_INFO.id}] 解析成功`, this.deviceInfo.storageInfo);
+        } catch (error) {
+          this.deviceInfo.storageInfo = { total: '获取失败', used: '获取失败', free: '获取失败' };
+          Logger.error(`[${COMMANDS.STORAGE_INFO.id}] 获取失败，使用默认值`);
+        }
+        
+        // 电池电量
+        try {
+          const batteryOutput = await this.executeCommand(
+            COMMANDS.BATTERY_PERCENT.id,
+            COMMANDS.BATTERY_PERCENT.name,
+            COMMANDS.BATTERY_PERCENT.command
+          );
+          this.deviceInfo.batteryPercent = COMMANDS.BATTERY_PERCENT.parser(batteryOutput);
+          Logger.success(`[${COMMANDS.BATTERY_PERCENT.id}] 解析成功`, this.deviceInfo.batteryPercent);
+        } catch (error) {
+          this.deviceInfo.batteryPercent = '获取失败';
+          Logger.error(`[${COMMANDS.BATTERY_PERCENT.id}] 获取失败，使用默认值`);
+        }
+        
+        // 网络接口
+        try {
+          const networkOutput = await this.executeCommand(
+            COMMANDS.NETWORK_INFO.id,
+            COMMANDS.NETWORK_INFO.name,
+            COMMANDS.NETWORK_INFO.command
+          );
+          this.deviceInfo.networkInfo = {
+            interfaces: COMMANDS.NETWORK_INFO.parser(networkOutput)
+          };
+          Logger.success(`[${COMMANDS.NETWORK_INFO.id}] 解析成功`, this.deviceInfo.networkInfo);
+        } catch (error) {
+          this.deviceInfo.networkInfo = { interfaces: '获取失败' };
+          Logger.error(`[${COMMANDS.NETWORK_INFO.id}] 获取失败，使用默认值`);
+        }
+        
+        // 完成
+        this.deviceInfo.timestamp = Date.now();
+        this.deviceInfo.error = undefined;
+        Logger.success('设备信息获取完成', {
+          ipAddress: this.deviceInfo.ipAddress,
+          deviceId: this.deviceInfo.deviceId,
+          batteryPercent: this.deviceInfo.batteryPercent,
+          timestamp: new Date(this.deviceInfo.timestamp).toLocaleString()
+        });
+        
+        // 输出执行日志摘要
+        const successCount = this.executionLog.filter(log => log.success).length;
+        const totalCount = this.executionLog.length;
+        Logger.log(`执行摘要: ${successCount}/${totalCount} 个命令成功`);
+        
+      } catch (error: any) {
+        // 回滚到之前的状态
+        this.deviceInfo = { ...previousInfo, error: `刷新失败: ${error.message || '未知错误'}` };
+        this.errorDetails = JSON.stringify({
+          message: error.message,
+          stack: error.stack,
+          executionLog: this.executionLog
+        }, null, 2);
+        Logger.error('获取设备信息整体失败', error);
       }
     },
-
+    
     async refreshInfo() {
-      if (this.isRefreshing) return;
+      if (this.isRefreshing) {
+        Logger.warn('刷新操作正在进行中，忽略重复点击');
+        return;
+      }
+      
+      Logger.log('用户点击刷新按钮，开始刷新设备信息');
       this.isRefreshing = true;
-      await this.fetchDeviceInfo();
-      this.isRefreshing = false;
+      
+      try {
+        await this.fetchDeviceInfo();
+        Logger.success('刷新操作成功完成');
+      } catch (error: any) {
+        Logger.error('刷新操作失败', error);
+        // 错误信息已经在fetchDeviceInfo中设置
+      } finally {
+        this.isRefreshing = false;
+        Logger.log('刷新操作结束');
+      }
     },
-
+    
     handleBackPress() {
+      Logger.log('用户点击返回按钮');
       this.$page.finish();
     },
-
+    
     formatIP(ip?: string) {
       return ip || '未获取到';
+    },
+    
+    // 调试方法：获取执行日志
+    getExecutionLog() {
+      return this.executionLog;
+    },
+    
+    // 调试方法：获取错误详情
+    getErrorDetails() {
+      return this.errorDetails;
     }
   }
 });

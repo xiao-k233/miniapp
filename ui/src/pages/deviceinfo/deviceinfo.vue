@@ -15,13 +15,14 @@
               class="refresh-btn" 
               @click="refreshInfo"
             >
-              <text class="refresh-icon">{{ isRefreshing ? '⟳' : '↻' }}</text>
+              <!-- 修改为图片按钮 -->
+              <image class="refresh-icon" :src="require('./images/refresh.png')" />
             </div>
           </div>
         </div>
         
         <!-- 加载状态 -->
-        <div v-if="isLoading" class="loading-container">
+       <div v-if="isLoading" class="loading-container">
           <text class="loading-text">正在加载设备信息...</text>
         </div>
         

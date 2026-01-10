@@ -1,7 +1,7 @@
 {
   "name": "PenTool",
   "appid": "8001749644971193",
-  "version": "1.2.10.5",
+  "version": "1.2.11",
   "description": "一个简单易用的工具箱",
   "icon": "app_icon.png",
   "quickjs": {

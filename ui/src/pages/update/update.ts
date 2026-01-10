@@ -17,14 +17,14 @@
 
 import { defineComponent } from 'vue';
 import { Shell } from 'langningchen';
-import { showError, showSuccess, showInfo } from '../../components/ToastMessage';
+import { showError, showSuccess, showInfo, showWarning } from '../../components/ToastMessage';
 import { hideLoading, showLoading } from '../../components/Loading';
 
 export type UpdateOptions = {};
 
 // GitHub配置
 const GITHUB_OWNER = 'penosext';
-const GITHUB_REPO = 'miniapp';
+const GITHUB_REPO = 'miniapp_dev';
 
 // 当前版本号（每次发布需要更新）
 const CURRENT_VERSION = '1.2.4';
@@ -125,9 +125,20 @@ const update = defineComponent({
             
             // 镜像源设置
             mirrors: MIRRORS,
-            selectedMirror: 'langningchen', // 默认使用ghproxy镜像
+            selectedMirror: 'langningchen', // 默认使用langningchen镜像
             useMirror: true, // 是否使用镜像
             currentMirror: MIRRORS.find(m => m.id === 'langningchen') || MIRRORS[0],
+            
+            // 设备匹配状态
+            deviceMatched: true,
+            otherDeviceModels: [] as string[],
+            
+            // 下载进度信息
+            downloadedSize: 0,
+            downloadProgress: 0,
+            downloadProgressText: '',
+            downloadTimer: null as any,
+            isDownloading: false,
         };
     },
 
@@ -141,7 +152,7 @@ const update = defineComponent({
             switch (this.status) {
                 case 'idle': return '准备就绪';
                 case 'checking': return '正在检查更新...';
-                case 'available': return '发现新版本';
+                case 'available': return this.deviceMatched ? '发现新版本' : '有新版本但不匹配设备';
                 case 'downloading': return '正在下载更新...';
                 case 'installing': return '正在安装...';
                 case 'updated': return '已是最新版本';
@@ -153,7 +164,8 @@ const update = defineComponent({
         statusClass(): string {
             switch (this.status) {
                 case 'checking': return 'status-checking';
-                case 'available': return 'status-available';
+                case 'available': 
+                    return this.deviceMatched ? 'status-available' : 'status-error';
                 case 'updated': return 'status-updated';
                 case 'error': return 'status-error';
                 default: return '';
@@ -162,11 +174,20 @@ const update = defineComponent({
 
         hasUpdate(): boolean {
             if (!this.latestVersion) return false;
-            return this.compareVersions(this.latestVersion, this.currentVersion) > 0;
+            return this.compareVersions(this.latestVersion, this.currentVersion) > 0 && this.deviceMatched;
         },
 
         formattedFileSize(): string {
             const size = this.fileSize;
+            if (size < 1024) return `${size} B`;
+            if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+            if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+            return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        },
+
+        // 格式化的下载进度文本
+        formattedDownloadedSize(): string {
+            const size = this.downloadedSize;
             if (size < 1024) return `${size} B`;
             if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
             if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
@@ -192,7 +213,13 @@ const update = defineComponent({
         // 显示更新状态摘要
         updateStatusSummary(): string {
             if (this.status === 'checking') return '正在检查更新...';
-            if (this.status === 'available') return `发现新版本 v${this.latestVersion} (${this.deviceModel})`;
+            if (this.status === 'available') {
+                if (this.deviceMatched) {
+                    return `发现新版本 v${this.latestVersion} (${this.deviceModel})`;
+                } else {
+                    return `发现新版本但不适用于当前设备 (${this.deviceModel})`;
+                }
+            }
             if (this.status === 'updated') return `已是最新版本 v${this.currentVersion} (${this.deviceModel})`;
             if (this.status === 'error') return '检查更新失败';
             return `当前版本: v${this.currentVersion} (${this.deviceModel})`;
@@ -242,6 +269,8 @@ const update = defineComponent({
             
             this.status = 'checking';
             this.errorMessage = '';
+            this.deviceMatched = true;
+            this.otherDeviceModels = [];
             
             try {
                 showLoading('正在检查更新...');
@@ -300,63 +329,73 @@ const update = defineComponent({
                     if (data.assets && Array.isArray(data.assets)) {
                         console.log('可用的资源文件:', data.assets.map((a: any) => a.name));
                         
-                        // 构建预期的文件名
-                        const expectedFilename = `miniapp_${this.deviceModel}_v${tagVersion}.amr`;
-                        console.log('预期的文件名:', expectedFilename);
+                        // 构建预期的文件名模式
+                        const expectedFilenamePattern = `miniapp_${this.deviceModel}_v${tagVersion}.amr`;
+                        console.log('预期的文件名:', expectedFilenamePattern);
                         
-                        // 查找完全匹配的文件
+                        // 查找完全匹配当前设备型号的文件
                         let matchedAsset = data.assets.find((asset: any) => 
-                            asset.name && asset.name === expectedFilename
+                            asset.name && asset.name === expectedFilenamePattern
                         );
                         
-                        // 如果未找到完全匹配的文件，尝试查找包含型号和版本的文件
+                        // 如果未找到完全匹配，尝试查找包含设备型号的文件
                         if (!matchedAsset) {
+                            const deviceModelRegex = new RegExp(`miniapp_${this.deviceModel}_v[0-9.]+\.amr$`, 'i');
                             matchedAsset = data.assets.find((asset: any) => 
-                                asset.name && 
-                                asset.name.includes(this.deviceModel) && 
-                                asset.name.includes(tagVersion) &&
-                                asset.name.endsWith('.amr')
+                                asset.name && deviceModelRegex.test(asset.name)
                             );
                         }
                         
-                        // 如果还未找到，尝试查找包含型号的文件
-                        if (!matchedAsset) {
-                            matchedAsset = data.assets.find((asset: any) => 
-                                asset.name && 
-                                asset.name.includes(this.deviceModel) &&
-                                asset.name.endsWith('.amr')
-                            );
-                        }
+                        // 查找其他设备型号的文件（用于信息提示）
+                        const otherDeviceAssets = data.assets.filter((asset: any) => {
+                            if (!asset.name || !asset.name.endsWith('.amr')) return false;
+                            // 检查是否包含其他设备型号
+                            const deviceModelRegex = /miniapp_([a-z0-9]+)_v[0-9.]+\.amr$/i;
+                            const match = asset.name.match(deviceModelRegex);
+                            if (match && match[1] !== this.deviceModel) {
+                                return true;
+                            }
+                            return false;
+                        });
                         
-                        // 如果还未找到，使用第一个.amr文件
-                        if (!matchedAsset) {
-                            matchedAsset = data.assets.find((asset: any) => 
-                                asset.name && asset.name.endsWith('.amr')
-                            );
-                        }
+                        // 收集其他设备型号
+                        this.otherDeviceModels = otherDeviceAssets.map((asset: any) => {
+                            const match = asset.name.match(/miniapp_([a-z0-9]+)_v[0-9.]+\.amr$/i);
+                            return match ? match[1] : 'unknown';
+                        }).filter((value: string, index: number, self: string[]) => self.indexOf(value) === index);
                         
                         if (matchedAsset) {
                             this.downloadUrl = matchedAsset.browser_download_url;
                             this.fileSize = matchedAsset.size || 0;
+                            this.deviceMatched = true;
                             console.log(`找到匹配的文件: ${matchedAsset.name}`);
-                            
-                            // 检查文件是否匹配当前设备型号
-                            if (matchedAsset.name.includes(this.deviceModel)) {
-                                console.log(`文件匹配当前设备型号: ${this.deviceModel}`);
-                            } else {
-                                console.warn(`警告: 文件 ${matchedAsset.name} 不匹配当前设备型号 ${this.deviceModel}`);
-                            }
+                            console.log(`文件匹配当前设备型号: ${this.deviceModel}`);
                         } else {
-                            console.warn('未找到合适的.amr文件');
-                            throw new Error(`未找到适用于 ${this.deviceModel} 型号的更新文件`);
+                            this.deviceMatched = false;
+                            console.warn(`警告: 未找到适用于 ${this.deviceModel} 型号的更新文件`);
+                            
+                            if (otherDeviceAssets.length > 0) {
+                                console.log(`发现其他设备的更新文件: ${otherDeviceAssets.map((a: any) => a.name).join(', ')}`);
+                                console.log(`可用设备型号: ${this.otherDeviceModels.join(', ')}`);
+                            }
                         }
                     } else {
+                        this.deviceMatched = false;
                         throw new Error('Release中没有找到资源文件');
                     }
                     
-                    if (this.hasUpdate) {
-                        this.status = 'available';
-                        showInfo(`发现新版本 ${this.latestVersion} (${this.deviceModel})`);
+                    if (this.compareVersions(this.latestVersion, this.currentVersion) > 0) {
+                        if (this.deviceMatched) {
+                            this.status = 'available';
+                            showInfo(`发现新版本 ${this.latestVersion} (${this.deviceModel})`);
+                        } else {
+                            this.status = 'available'; // 仍然显示为available，但设备不匹配
+                            if (this.otherDeviceModels.length > 0) {
+                                showWarning(`发现新版本 ${this.latestVersion}，但不适用于当前设备 (${this.deviceModel})。可用设备型号: ${this.otherDeviceModels.join(', ')}`);
+                            } else {
+                                showWarning(`发现新版本 ${this.latestVersion}，但没有适用于 ${this.deviceModel} 型号的文件`);
+                            }
+                        }
                     } else {
                         this.status = 'updated';
                         showSuccess(`已是最新版本 v${this.currentVersion} (${this.deviceModel})`);
@@ -392,7 +431,48 @@ const update = defineComponent({
             return 0;
         },
 
-        // 下载更新
+        // 更新下载进度
+        async updateDownloadProgress() {
+            if (!this.downloadPath || !Shell || !this.isDownloading) return;
+            
+            try {
+                // 检查文件是否存在并获取大小
+                const checkCmd = `test -f "${this.downloadPath}" && wc -c < "${this.downloadPath}" || echo 0`;
+                const sizeResult = await Shell.exec(checkCmd);
+                const currentSize = parseInt(sizeResult.trim()) || 0;
+                
+                this.downloadedSize = currentSize;
+                
+                if (this.fileSize > 0) {
+                    this.downloadProgress = Math.min(100, Math.round((currentSize / this.fileSize) * 100));
+                    this.downloadProgressText = `${this.formattedDownloadedSize}/${this.formattedFileSize} (${this.downloadProgress}%)`;
+                } else {
+                    this.downloadProgressText = `${this.formattedDownloadedSize}`;
+                }
+                
+                console.log(`下载进度: ${this.downloadProgressText}`);
+                
+                // 如果下载完成，停止定时器
+                if (currentSize >= this.fileSize && this.fileSize > 0) {
+                    this.clearDownloadProgress();
+                    this.isDownloading = false;
+                }
+                
+            } catch (error) {
+                console.warn('获取下载进度失败:', error);
+            }
+        },
+
+        // 清理下载进度监控
+        clearDownloadProgress() {
+            if (this.downloadTimer) {
+                clearInterval(this.downloadTimer);
+                this.downloadTimer = null;
+            }
+            this.isDownloading = false;
+        },
+
+        // 下载更新 - 使用更简单的方法
         async downloadUpdate() {
             if (!this.shellInitialized || !Shell) {
                 showError('Shell模块未初始化');
@@ -404,7 +484,20 @@ const update = defineComponent({
                 return;
             }
             
+            // 检查设备匹配
+            if (!this.deviceMatched) {
+                showError(`当前更新不适用于您的设备 (${this.deviceModel})`);
+                if (this.otherDeviceModels.length > 0) {
+                    showInfo(`此更新适用于: ${this.otherDeviceModels.join(', ')} 型号`);
+                }
+                return;
+            }
+            
             this.status = 'downloading';
+            this.clearDownloadProgress(); // 清理之前的进度
+            this.downloadedSize = 0;
+            this.downloadProgress = 0;
+            this.downloadProgressText = '';
             
             try {
                 showLoading(`正在下载 ${this.deviceModel} 型号的更新...`);
@@ -430,22 +523,36 @@ const update = defineComponent({
                 console.log('设备型号:', this.deviceModel);
                 console.log('目标版本:', this.latestVersion);
                 console.log('使用镜像:', this.useMirror ? this.currentMirror.name : '无');
+                console.log('文件总大小:', this.fileSize, 'bytes');
                 
-                // 使用curl下载文件
+                // 启动进度监控（每秒更新一次）
+                this.isDownloading = true;
+                this.downloadTimer = setInterval(async () => {
+                    await this.updateDownloadProgress();
+                }, 1000);
+                
+                // 使用curl下载文件（简单版本，不使用后台进程）
                 const downloadCmd = `curl -k -L "${finalDownloadUrl}" -o "${this.downloadPath}"`;
                 console.log('执行命令:', downloadCmd);
                 
+                // 执行下载命令
                 await Shell.exec(downloadCmd);
+                
+                // 等待一下确保文件已写入
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 清理进度监控
+                this.clearDownloadProgress();
                 
                 // 检查文件是否下载成功
                 const checkCmd = `test -f "${this.downloadPath}" && echo "exists"`;
                 const checkResult = await Shell.exec(checkCmd);
                 
                 if (checkResult.trim() === 'exists') {
-                    // 获取文件大小
+                    // 获取最终文件大小
                     const sizeCmd = `wc -c < "${this.downloadPath}"`;
                     const fileSize = parseInt(await Shell.exec(sizeCmd)) || 0;
-                    console.log(`文件下载成功，大小: ${fileSize} 字节`);
+                    console.log(`文件下载成功，最终大小: ${fileSize} 字节`);
                     
                     if (fileSize > 0) {
                         showSuccess(`${this.deviceModel} 型号的更新下载完成，开始安装`);
@@ -462,6 +569,9 @@ const update = defineComponent({
                 this.status = 'error';
                 this.errorMessage = error.message || '下载失败';
                 showError(`下载失败: ${this.errorMessage}`);
+                
+                // 清理进度监控
+                this.clearDownloadProgress();
                 
                 // 提供手动安装说明
                 if (this.downloadUrl) {
@@ -480,6 +590,12 @@ const update = defineComponent({
                 return;
             }
             
+            // 检查设备匹配
+            if (!this.deviceMatched) {
+                showError(`当前更新不适用于您的设备 (${this.deviceModel})，安装已取消`);
+                return;
+            }
+            
             this.status = 'installing';
             
             try {
@@ -493,6 +609,8 @@ const update = defineComponent({
                 
                 const result = await Shell.exec(installCmd);
                 console.log('安装结果:', result);
+                
+                // 清理旧的临时文件
                 await Shell.exec('rm -f /userdisk/miniapp_*_v*_*.amr 2>/dev/null || true');
                 await Shell.exec('rm -f /userdisk/miniapp_update_*.amr 2>/dev/null || true');
                 
@@ -538,7 +656,6 @@ const update = defineComponent({
             this.checkForUpdates();
         },
 
-
         // 查看GitHub页面
         openGitHub() {
             const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
@@ -547,7 +664,11 @@ const update = defineComponent({
 
         // 显示设备信息
         showDeviceInfo() {
-            showInfo(`设备型号: ${this.deviceModel}\n当前版本: v${this.currentVersion}`);
+            let info = `设备型号: ${this.deviceModel}\n当前版本: v${this.currentVersion}`;
+            if (this.otherDeviceModels.length > 0) {
+                info += `\n\n发现其他设备型号的更新: ${this.otherDeviceModels.join(', ')}`;
+            }
+            showInfo(info);
         },
 
         // 格式化日期
