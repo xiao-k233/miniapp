@@ -24,7 +24,7 @@
             <scroller ref="messageScroller" class="messages-scroller" scroll-direction="vertical"
                 :show-scrollbar="true">
                 <div v-for="message in displayMessages" :key="message.id" class="message-container">
-                    <text :class="'message message-' + message.role">{{ message.content }}</text>
+                    <text :class="'message message-' + message.role">{{ message.content || '...' }}</text>
                     <text v-if="![0, 1, 6].includes(message.stopReason)" class="stop-reason-warning">{{
                         getStopReasonText(message.stopReason) }}</text>
                     <div v-if="message.role === 0 || message.role === 1"
@@ -51,24 +51,24 @@
                         :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">导</text>
                     <text @click="openSettings"
                         :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">设</text>
-                    <!-- 添加分割线 -->
+                    <!-- 分割线 -->
                     <div class="divider"></div>
-                    <!-- 可以添加更多按钮，例如清除对话等 -->
+                    <!-- 清除对话按钮 -->
                     <text v-if="messages.length > 0" @click="clearConversation"
                         :class="'square-btn extra-side-button' + (isStreaming ? ' square-btn-disabled' : '')">清</text>
                 </scroller>
             </div>
         </div>
 
-        <!-- 输入区域 - 固定在底部 -->
+        <!-- 输入区域 -->
         <div class="input-area">
             <text :class="'input-field' + (isStreaming ? ' input-field-disabled' : '')" 
                   @click="loadSoftKeyboard">
                 {{ currentInput || '点击输入...' }}
             </text>
             <text v-if="!isStreaming" 
-                  @click="sendMessage(this.currentInput)"
-                  :class="'send-button' + (this.canSendMessage ? '' : ' send-button-disabled')">
+                  @click="sendMessage(currentInput)"
+                  :class="'send-button' + (canSendMessage ? '' : ' send-button-disabled')">
                 发
             </text>
             <text v-else 
@@ -93,15 +93,6 @@ export default {
     ...ai,
     components: {
         ToastMessage
-    },
-    methods: {
-        // 添加清除对话的方法
-        clearConversation() {
-            if (this.isStreaming) return;
-            // 这里可以添加清除对话的逻辑
-            // 例如：this.messages = [];
-            // 注意：这只是一个示例，实际清除需要调用AI的相应方法
-        }
     }
 }
 </script>
