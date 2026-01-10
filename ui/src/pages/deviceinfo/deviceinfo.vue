@@ -55,7 +55,7 @@
             <text class="item-value">{{ deviceInfo.deviceId || '未知' }}</text>
           </div>
           
-          <!-- 槽位信息 - 新增 -->
+          <!-- 槽位信息 -->
           <div class="info-item">
             <text class="item-label">槽位信息</text>
             <text class="item-value">{{ deviceInfo.slotInfo || '未知' }}</text>
@@ -73,6 +73,20 @@
           <div class="info-item">
             <text class="item-label">系统版本</text>
             <text class="item-value">{{ deviceInfo.systemInfo && deviceInfo.systemInfo.version ? deviceInfo.systemInfo.version : '未知' }}</text>
+          </div>
+          
+          <!-- 根文件系统信息 - 新增 -->
+          <div class="info-item" v-if="deviceInfo.rootFilesystem">
+            <text class="item-label">根文件系统类型</text>
+            <text class="item-value">{{ deviceInfo.rootFilesystem.type || '未知' }}</text>
+          </div>
+          <div class="info-item" v-if="deviceInfo.rootFilesystem">
+            <text class="item-label">读写状态</text>
+            <text class="item-value">{{ deviceInfo.rootFilesystem.readWrite || '未知' }}</text>
+          </div>
+          <div class="info-item" v-if="deviceInfo.rootFilesystem && deviceInfo.rootFilesystem.mountOptions">
+            <text class="item-label">挂载选项</text>
+            <text class="item-value">{{ deviceInfo.rootFilesystem.mountOptions }}</text>
           </div>
           
           <!-- 存储信息 -->

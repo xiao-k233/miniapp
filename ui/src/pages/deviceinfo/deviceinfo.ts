@@ -20,7 +20,12 @@ interface DeviceInfo {
     free?: string;
   };
   batteryPercent?: string;
-  slotInfo?: string; // 新增：槽位信息
+  slotInfo?: string;
+  rootFilesystem?: {
+    type?: string;
+    mountOptions?: string;
+    readWrite?: string;
+  };
   timestamp?: number;
   error?: string;
 }
@@ -125,15 +130,45 @@ const COMMANDS = {
     parser: (output: string) => output.trim() || '无网络接口信息'
   },
   
-  // 槽位信息相关命令 - 新增
+  // 槽位信息相关命令
   SLOT_INFO: {
     id: 'slot_info',
     name: '槽位信息',
-    // 使用sed提取slot_suffix的值，如果不存在则输出"未知"
     command: 'cat /proc/cmdline | sed -n "s/.*slot_suffix=\\(\\S*\\).*/\\1/p"',
     parser: (output: string) => {
       const trimmed = output.trim();
       return trimmed && trimmed.length > 0 ? trimmed : '未知';
+    }
+  },
+  
+  // 根文件系统信息相关命令 - 新增
+  ROOT_FILESYSTEM: {
+    id: 'root_filesystem',
+    name: '根文件系统',
+    // 使用awk提取根文件系统的类型和挂载选项
+    command: 'mount | awk \'$3 == "/" {print $5, $6}\'',
+    parser: (output: string) => {
+      const trimmed = output.trim();
+      if (trimmed) {
+        const parts = trimmed.split(' ');
+        const type = parts[0] || '未知';
+        const mountOptions = parts[1] || '未知';
+        
+        // 提取rw/ro信息
+        let readWrite = '未知';
+        if (mountOptions.includes('rw')) {
+          readWrite = '读写 (rw)';
+        } else if (mountOptions.includes('ro')) {
+          readWrite = '只读 (ro)';
+        }
+        
+        return {
+          type: type,
+          mountOptions: mountOptions,
+          readWrite: readWrite
+        };
+      }
+      return { type: '未知', mountOptions: '未知', readWrite: '未知' };
     }
   }
 };
@@ -407,7 +442,7 @@ export default defineComponent({
           Logger.error(`[${COMMANDS.NETWORK_INFO.id}] 获取失败，使用默认值`);
         }
         
-        // 槽位信息 - 新增
+        // 槽位信息
         try {
           const slotOutput = await this.executeCommand(
             COMMANDS.SLOT_INFO.id,
@@ -421,6 +456,20 @@ export default defineComponent({
           Logger.error(`[${COMMANDS.SLOT_INFO.id}] 获取失败，使用默认值`);
         }
         
+        // 根文件系统信息 - 新增
+        try {
+          const rootFsOutput = await this.executeCommand(
+            COMMANDS.ROOT_FILESYSTEM.id,
+            COMMANDS.ROOT_FILESYSTEM.name,
+            COMMANDS.ROOT_FILESYSTEM.command
+          );
+          this.deviceInfo.rootFilesystem = COMMANDS.ROOT_FILESYSTEM.parser(rootFsOutput);
+          Logger.success(`[${COMMANDS.ROOT_FILESYSTEM.id}] 解析成功`, this.deviceInfo.rootFilesystem);
+        } catch (error) {
+          this.deviceInfo.rootFilesystem = { type: '获取失败', mountOptions: '获取失败', readWrite: '获取失败' };
+          Logger.error(`[${COMMANDS.ROOT_FILESYSTEM.id}] 获取失败，使用默认值`);
+        }
+        
         // 完成
         this.deviceInfo.timestamp = Date.now();
         this.deviceInfo.error = undefined;
@@ -429,6 +478,7 @@ export default defineComponent({
           deviceId: this.deviceInfo.deviceId,
           batteryPercent: this.deviceInfo.batteryPercent,
           slotInfo: this.deviceInfo.slotInfo,
+          rootFilesystem: this.deviceInfo.rootFilesystem,
           timestamp: new Date(this.deviceInfo.timestamp).toLocaleString()
         });
         
