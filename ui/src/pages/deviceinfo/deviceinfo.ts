@@ -20,32 +20,18 @@ interface DeviceInfo {
     free?: string;
   };
   batteryPercent?: string;
+  slotInfo?: string; // 新增：槽位信息
   timestamp?: number;
   error?: string;
 }
 
 // 命令配置
 const COMMANDS = {
-  // IP地址相关命令 - 增强版，先尝试wlan0，再尝试eth0
+  // IP地址相关命令 - 简化版，直接提取IP
   IP_ADDRESS: {
     id: 'ip_address',
     name: 'IP地址',
-    command: `
-      # 先尝试wlan0接口
-      WLAN0_IP=$(ip addr show wlan0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}')
-      if [ -n "$WLAN0_IP" ]; then
-        echo "$WLAN0_IP"
-      else
-        # 再尝试eth0接口
-        ETH0_IP=$(ip addr show eth0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}')
-        if [ -n "$ETH0_IP" ]; then
-          echo "$ETH0_IP"
-        else
-          # 最后尝试所有接口
-          ip route get 1.2.3.4 2>/dev/null | awk '{print $7}' | head -1
-        fi
-      fi
-    `,
+    command: `ip addr show wlan0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]; exit}'`,
     parser: (output: string) => {
       const trimmed = output.trim();
       // 验证是否为IP地址格式
@@ -137,6 +123,18 @@ const COMMANDS = {
     name: '网络接口',
     command: 'ip -4 addr show',
     parser: (output: string) => output.trim() || '无网络接口信息'
+  },
+  
+  // 槽位信息相关命令 - 新增
+  SLOT_INFO: {
+    id: 'slot_info',
+    name: '槽位信息',
+    // 使用sed提取slot_suffix的值，如果不存在则输出"未知"
+    command: 'cat /proc/cmdline | sed -n "s/.*slot_suffix=\\(\\S*\\).*/\\1/p"',
+    parser: (output: string) => {
+      const trimmed = output.trim();
+      return trimmed && trimmed.length > 0 ? trimmed : '未知';
+    }
   }
 };
 
@@ -409,6 +407,20 @@ export default defineComponent({
           Logger.error(`[${COMMANDS.NETWORK_INFO.id}] 获取失败，使用默认值`);
         }
         
+        // 槽位信息 - 新增
+        try {
+          const slotOutput = await this.executeCommand(
+            COMMANDS.SLOT_INFO.id,
+            COMMANDS.SLOT_INFO.name,
+            COMMANDS.SLOT_INFO.command
+          );
+          this.deviceInfo.slotInfo = COMMANDS.SLOT_INFO.parser(slotOutput);
+          Logger.success(`[${COMMANDS.SLOT_INFO.id}] 解析成功`, this.deviceInfo.slotInfo);
+        } catch (error) {
+          this.deviceInfo.slotInfo = '获取失败';
+          Logger.error(`[${COMMANDS.SLOT_INFO.id}] 获取失败，使用默认值`);
+        }
+        
         // 完成
         this.deviceInfo.timestamp = Date.now();
         this.deviceInfo.error = undefined;
@@ -416,6 +428,7 @@ export default defineComponent({
           ipAddress: this.deviceInfo.ipAddress,
           deviceId: this.deviceInfo.deviceId,
           batteryPercent: this.deviceInfo.batteryPercent,
+          slotInfo: this.deviceInfo.slotInfo,
           timestamp: new Date(this.deviceInfo.timestamp).toLocaleString()
         });
         

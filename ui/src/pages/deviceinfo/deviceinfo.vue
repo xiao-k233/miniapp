@@ -15,14 +15,13 @@
               class="refresh-btn" 
               @click="refreshInfo"
             >
-              <!-- 修改为图片按钮 -->
               <image class="refresh-icon" :src="require('./images/refresh.png')" />
             </div>
           </div>
         </div>
         
         <!-- 加载状态 -->
-       <div v-if="isLoading" class="loading-container">
+        <div v-if="isLoading" class="loading-container">
           <text class="loading-text">正在加载设备信息...</text>
         </div>
         
@@ -54,6 +53,12 @@
           <div class="info-item">
             <text class="item-label">设备ID</text>
             <text class="item-value">{{ deviceInfo.deviceId || '未知' }}</text>
+          </div>
+          
+          <!-- 槽位信息 - 新增 -->
+          <div class="info-item">
+            <text class="item-label">槽位信息</text>
+            <text class="item-value">{{ deviceInfo.slotInfo || '未知' }}</text>
           </div>
           
           <!-- 系统信息 -->
