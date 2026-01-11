@@ -149,18 +149,17 @@
     width: 100%;
 }
 
-/* 修改：彻底重写按钮样式 */
+/* 修改：使用flex布局确保文字居中 */
 .action-btn {
     flex: 1;
     height: 40px;
-    line-height: 40px;
     border-radius: 10px;
     font-size: 14px;
-    color: #ffffff;
     font-weight: bold;
-    text-align: center;
     border: 1px solid transparent;
-    display: block; /* 改为block确保背景色生效 */
+    display: flex !important; /* 使用flex布局 */
+    align-items: center !important; /* 垂直居中 */
+    justify-content: center !important; /* 水平居中 */
     min-width: 0;
     overflow: hidden; /* 防止内容溢出 */
     white-space: nowrap; /* 防止文字换行 */
@@ -168,6 +167,8 @@
     padding: 0 8px; /* 添加内边距，确保文字不紧贴边缘 */
     background-color: #007acc; /* 默认背景色 */
     border-color: #007acc; /* 默认边框色 */
+    cursor: pointer; /* 鼠标指针 */
+    user-select: none; /* 禁止文字选中 */
 }
 
 .action-btn:active {
@@ -178,13 +179,20 @@
 .action-btn.disabled {
     opacity: 0.5;
     pointer-events: none;
+    background-color: #6c757d !important; /* 禁用时灰色背景 */
+    border-color: #6c757d !important;
 }
 
 /* 主按钮（检查更新） */
 .main-btn {
     background-color: #007acc !important;
     border-color: #007acc !important;
+}
+
+.main-btn text {
     color: #ffffff !important;
+    text-align: center;
+    width: 100%;
 }
 
 .main-btn:active {
@@ -195,18 +203,28 @@
 .repo-btn {
     background-color: #17a2b8 !important;
     border-color: #17a2b8 !important;
+}
+
+.repo-btn text {
     color: #ffffff !important;
+    text-align: center;
+    width: 100%;
 }
 
 .repo-btn:active {
     background-color: #138496 !important;
 }
 
-/* 安装按钮 */
+/* 安装按钮 - 绿色 */
 .install-btn {
     background-color: #28a745 !important;
     border-color: #28a745 !important;
+}
+
+.install-btn text {
     color: #ffffff !important;
+    text-align: center;
+    width: 100%;
 }
 
 .install-btn:active {
@@ -217,18 +235,44 @@
 .unlock-btn {
     background-color: #6c757d !important;
     border-color: #6c757d !important;
+}
+
+.unlock-btn text {
     color: #ffffff !important;
+    text-align: center;
+    width: 100%;
 }
 
 .unlock-btn-active {
     background-color: #dc3545 !important;
     border-color: #dc3545 !important;
+}
+
+.unlock-btn-active text {
     color: #ffffff !important;
+    text-align: center;
+    width: 100%;
 }
 
 .unlock-btn:active, .unlock-btn-active:active {
     opacity: 0.8;
     transform: scale(0.98);
+}
+
+/* 无更新按钮 - 灰色 */
+.no-update-btn {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+}
+
+.no-update-btn text {
+    color: #ffffff !important;
+    text-align: center;
+    width: 100%;
+}
+
+.no-update-btn:active {
+    background-color: #5a6268 !important;
 }
 
 /* 解锁通知 */
@@ -423,4 +467,14 @@
     padding: 15px;
     background-color: #1a1a1a;
     border-radius: 8px;
+}
+
+/* 确保按钮内部文本样式正确 */
+.action-btn text {
+    font-size: 14px;
+    font-weight: bold;
+    display: block;
+    width: 100%;
+    text-align: center;
+    color: #ffffff !important;
 }

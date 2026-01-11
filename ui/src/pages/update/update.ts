@@ -222,36 +222,47 @@ const update = defineComponent({
             return canInstall;
         },
 
-        // 安装按钮文本（添加详细调试信息）
-        installButtonText(): string {
-            console.log('installButtonText计算:', {
-                canInstall: this.canInstall,
-                latestVersion: this.latestVersion,
-                downloadUrl: !!this.downloadUrl,
-                deviceMatched: this.deviceMatched,
-                unlockInstall: this.unlockInstall,
-                currentVersion: this.currentVersion,
-                text: this.canInstall ? (this.unlockInstall ? '安装/回退' : '安装') : '暂无更新'
-            });
-            
-            if (!this.canInstall) {
-                return '暂无更新';
-            }
-            
-            if (this.unlockInstall) {
-                const compareResult = this.compareVersions(this.latestVersion, this.currentVersion);
-                if (compareResult > 0) {
-                    return '安装';
-                } else if (compareResult < 0) {
-                    return '回退';
-                } else {
-                    return '安装'; // 相同版本也显示为安装
-                }
-            } else {
-                // 未解锁时，只有新版本才显示安装
-                return '安装';
-            }
-        },
+// 在 computed 部分添加以下计算属性：
+
+// 安装按钮类
+installButtonClass(): string {
+    if (!this.canInstall) {
+        return 'no-update-btn'; // 无更新时灰色背景
+    } else {
+        return 'install-btn'; // 有更新时绿色背景
+    }
+},
+
+// 修改 installButtonText 计算属性，保持原有逻辑但确保文字正确
+installButtonText(): string {
+    console.log('installButtonText计算:', {
+        canInstall: this.canInstall,
+        latestVersion: this.latestVersion,
+        downloadUrl: !!this.downloadUrl,
+        deviceMatched: this.deviceMatched,
+        unlockInstall: this.unlockInstall,
+        currentVersion: this.currentVersion,
+        text: this.canInstall ? (this.unlockInstall ? '安装/回退' : '安装') : '暂无更新'
+    });
+    
+    if (!this.canInstall) {
+        return '暂无更新';
+    }
+    
+    if (this.unlockInstall) {
+        const compareResult = this.compareVersions(this.latestVersion, this.currentVersion);
+        if (compareResult > 0) {
+            return '安装';
+        } else if (compareResult < 0) {
+            return '回退';
+        } else {
+            return '安装'; // 相同版本也显示为安装
+        }
+    } else {
+        // 未解锁时，只有新版本才显示安装
+        return '安装';
+    }
+},
 
         formattedFileSize(): string {
             const size = this.fileSize;

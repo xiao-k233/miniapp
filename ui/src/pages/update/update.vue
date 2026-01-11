@@ -34,7 +34,7 @@
 <text :class="'version-text ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">{{currentRepo === 'release' ? '发布版' : '开发版'}}</text>
 </div>
 
-<!-- 修改：按钮使用div包裹，确保样式正确 -->
+<!-- 按钮组 -->
 <div class="button-row">
 <div @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">
 <text>{{repoButtonText}}</text>
@@ -48,7 +48,8 @@
 <div @click="toggleUnlock" :class="['action-btn', unlockButtonClass, repoButtonDisabled?'disabled':'']">
 <text>{{unlockButtonText}}</text>
 </div>
-<div @click="downloadUpdate" :class="['action-btn', 'install-btn', installButtonDisabled?'disabled':'']">
+<!-- 安装按钮：根据canInstall状态动态切换类 -->
+<div @click="downloadUpdate" :class="['action-btn', installButtonClass, installButtonDisabled?'disabled':'']">
 <text>{{installButtonText}}</text>
 </div>
 </div>
