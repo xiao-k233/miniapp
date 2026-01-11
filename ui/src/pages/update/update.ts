@@ -222,7 +222,7 @@ const update = defineComponent({
             return canInstall;
         },
 
-        // 安装按钮文本
+        // 安装按钮文本（添加详细调试信息）
         installButtonText(): string {
             console.log('installButtonText计算:', {
                 canInstall: this.canInstall,
@@ -230,7 +230,8 @@ const update = defineComponent({
                 downloadUrl: !!this.downloadUrl,
                 deviceMatched: this.deviceMatched,
                 unlockInstall: this.unlockInstall,
-                currentVersion: this.currentVersion
+                currentVersion: this.currentVersion,
+                text: this.canInstall ? (this.unlockInstall ? '安装/回退' : '安装') : '暂无更新'
             });
             
             if (!this.canInstall) {
