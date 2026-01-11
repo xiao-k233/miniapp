@@ -21,19 +21,28 @@
 <text class="version-label">最新版本:</text>
 <text class="version-text version-new">v{{latestVersion}}</text>
 </div>
-<div class="version-line">
-<text class="version-label">当前仓库:</text>
-<text class="version-text">{{currentRepoFullName}}</text>
+<div v-if="latestVersion" class="version-line">
+<text class="version-label">版本比较:</text>
+<text :class="'version-text ' + versionCompareClass">{{versionCompareText}}</text>
 </div>
-<div class="version-line">
-<text class="version-label">仓库类型:</text>
-<text :class="'version-text ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">
+<div class="repo-info-line">
+<text class="repo-label">当前仓库:</text>
+<text class="repo-value">{{currentRepoFullName}}</text>
+</div>
+<div class="repo-info-line">
+<text class="repo-label">仓库类型:</text>
+<text :class="'repo-type ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">
 {{currentRepo === 'release' ? '发布版' : '开发版'}}
 </text>
 </div>
 <div class="button-row">
 <text @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">{{repoButtonText}}</text>
 <text @click="handleMainButton" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
+</div>
+<div v-if="showUnlockButton" class="unlock-row">
+<text @click="toggleUnlock" :class="'action-btn unlock-btn ' + unlockButtonClass">
+{{unlockButtonText}}
+</text>
 </div>
 </div>
 </div>
@@ -82,6 +91,10 @@
 <text class="file-label">文件名:</text>
 <text class="file-value">{{currentDeviceFilename}}</text>
 </div>
+<div v-if="unlockInstall" class="file-info-line unlock-notice">
+<text class="file-label">注意:</text>
+<text class="file-value">解锁模式下可安装任意版本（需设备匹配）</text>
+</div>
 </div>
 </div>
 
@@ -98,8 +111,11 @@
 <div class="link-item" @click="openGitHub">
 <text class="link-text">GitHub 页面 ({{currentRepo}})</text>
 </div>
+<div class="link-item" @click="toggleUnlock">
+<text class="link-text">{{unlockInstall ? '锁定安装限制' : '解锁安装限制'}}</text>
+</div>
 <div class="text-item">
-<text class="text-content">设备: {{deviceModel}} | 仓库: {{currentRepo}}</text>
+<text class="text-content">设备: {{deviceModel}} | 仓库: {{currentRepo}} | 解锁: {{unlockInstall ? '是' : '否'}}</text>
 </div>
 </div>
 </div>
@@ -111,10 +127,12 @@
 <text class="instruction-text">1. 点击"检查更新"按钮获取最新版本信息
 2. 左右滑动选择镜像源，点击按钮切换
 3. 点击"切换到开发版/发布版"切换更新源
-4. 如果有新版本，点击"下载更新"按钮
-5. 下载完成后会自动安装
-6. 安装完成后请重启应用
-7. 如果自动更新失败，可以手动下载安装</text>
+4. 点击"解锁安装"可安装任意版本（需设备匹配）
+5. 如果有新版本，点击"下载更新"按钮
+6. 解锁模式下可以强制重装或回退版本
+7. 下载完成后会自动安装
+8. 安装完成后请重启应用
+9. 如果自动更新失败，可以手动下载安装</text>
 </div>
 </div>
 </scroller>

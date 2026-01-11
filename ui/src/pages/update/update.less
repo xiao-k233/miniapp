@@ -107,7 +107,55 @@
     background-color: #4a3e1a;
 }
 
-/* 仓库类型颜色 */
+/* 版本比较颜色 */
+.version-newer {
+    color: #28a745;
+    background-color: #1a4a2e;
+}
+
+.version-older {
+    color: #dc3545;
+    background-color: #4a1e1e;
+}
+
+.version-same {
+    color: #17a2b8;
+    background-color: #0e3d4a;
+}
+
+/* 仓库信息行 */
+.repo-info-line {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+    padding: 8px;
+    background-color: #1a1a1a;
+    border-radius: 8px; /* 增加圆角弧度 */
+}
+
+.repo-label {
+    font-size: 14px;
+    color: #888888;
+    min-width: 80px;
+}
+
+.repo-value {
+    font-size: 14px;
+    color: #cccccc;
+    flex: 1;
+    word-wrap: break-word;
+}
+
+.repo-type {
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    text-align: center;
+    min-width: 80px;
+}
+
 .repo-type-release {
     color: #28a745;
     background-color: #1a4a2e;
@@ -167,6 +215,36 @@
 
 .repo-btn:active {
     background-color: #138496; /* 点击回亮效果 */
+}
+
+/* 解锁按钮行 */
+.unlock-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.unlock-btn {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    max-width: 200px;
+}
+
+.unlock-btn-active {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.unlock-btn:active, .unlock-btn-active:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+}
+
+/* 解锁通知 */
+.unlock-notice {
+    border-left: 4px solid #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
 }
 
 /* 卡片副标题 */
