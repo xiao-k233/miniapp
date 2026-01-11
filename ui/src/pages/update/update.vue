@@ -37,13 +37,13 @@
 </div>
 <div class="button-row">
 <text @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">{{repoButtonText}}</text>
-<text @click="handleMainButton" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
+<text @click="handleCheckUpdate" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
 </div>
 <div class="button-row">
 <text @click="toggleUnlock" :class="'action-btn unlock-btn ' + unlockButtonClass">
 {{unlockButtonText}}
 </text>
-<text @click="downloadUpdate" :class="'action-btn install-btn ' + (canInstall?'':'disabled')">下载并安装更新</text>
+<text @click="downloadUpdate" :class="'action-btn install-btn ' + (installButtonDisabled?'disabled':'')">{{installButtonText}}</text>
 </div>
 </div>
 </div>
@@ -123,12 +123,12 @@
 2. 左右滑动选择镜像源，点击按钮切换
 3. 点击"切换到开发版/发布版"切换更新源
 4. 点击"解锁安装"可安装任意版本（需设备匹配）
-5. 点击"下载更新"按钮开始下载最新版本
-6. 点击"下载并安装更新"直接开始安装流程
-7. 解锁模式下可以强制重装或回退版本
-8. 下载完成后会自动安装
-9. 安装完成后请重启应用
-10. 如果自动更新失败，可以手动下载安装</text>
+5. 右侧按钮显示当前可用的安装选项：
+   - 解锁前：只有新版本显示"安装"，否则显示"暂无更新"
+   - 解锁后：新版本显示"安装"，旧版本显示"回退"，相同版本显示"安装"
+6. 下载完成后会自动安装
+7. 安装完成后请重启应用
+8. 如果自动更新失败，可以手动下载安装</text>
 </div>
 </div>
 </scroller>

@@ -24,7 +24,7 @@ export type UpdateOptions = {};
 
 // GitHub配置 - 使用常量定义
 const GITHUB_OWNER = 'penosext';
-const RELEASE_REPO = 'miniapp';  // 发布版仓库
+const RELEASE_REPO = 'miniapp_dev';  // 发布版仓库
 const DEV_REPO = 'miniapp_dev';      // 开发版仓库
 
 // 当前版本号（每次发布需要更新）
@@ -175,6 +175,7 @@ const update = defineComponent({
 
         statusClass(): string {
             switch (this.status) {
+                case 'idle': return 'status-idle'; // 准备就绪使用绿色
                 case 'checking': return 'status-checking';
                 case 'available': 
                     return this.deviceMatched ? 'status-available' : 'status-error';
@@ -197,6 +198,31 @@ const update = defineComponent({
         canInstall(): boolean {
             return this.deviceMatched && !!this.downloadUrl && 
                    (this.unlockInstall || this.compareVersions(this.latestVersion, this.currentVersion) > 0);
+        },
+
+        // 安装按钮文本
+        installButtonText(): string {
+            if (!this.deviceMatched || !this.downloadUrl) {
+                return '暂无更新';
+            }
+            
+            if (this.unlockInstall) {
+                const compareResult = this.compareVersions(this.latestVersion, this.currentVersion);
+                if (compareResult > 0) {
+                    return '安装';
+                } else if (compareResult < 0) {
+                    return '回退';
+                } else {
+                    return '安装'; // 相同版本也显示为安装
+                }
+            } else {
+                // 未解锁时，只有新版本才显示安装
+                if (this.compareVersions(this.latestVersion, this.currentVersion) > 0) {
+                    return '安装';
+                } else {
+                    return '暂无更新';
+                }
+            }
         },
 
         formattedFileSize(): string {
@@ -257,20 +283,9 @@ const update = defineComponent({
             return `${this.githubOwner}/${this.currentRepoName}`;
         },
 
-        // 下载按钮文本
+        // 下载按钮文本（固定为"检查更新"）
         downloadButtonText(): string {
-            if (this.status === 'available' && (this.deviceMatched || this.unlockInstall)) {
-                if (this.unlockInstall && this.compareVersions(this.latestVersion, this.currentVersion) <= 0) {
-                    return '强制重装';
-                }
-                return '下载更新';
-            } else if (this.status === 'downloading') {
-                return '下载中...';
-            } else if (this.status === 'installing') {
-                return '安装中...';
-            } else {
-                return '检查更新';
-            }
+            return '检查更新';
         },
 
         // 下载按钮是否可用
@@ -295,7 +310,23 @@ const update = defineComponent({
 
         // 安装按钮是否可用
         installButtonDisabled(): boolean {
-            return !this.canInstall || this.status === 'checking' || this.status === 'downloading' || this.status === 'installing';
+            // 如果没有下载链接或设备不匹配，则禁用
+            if (!this.downloadUrl || !this.deviceMatched) {
+                return true;
+            }
+            
+            // 如果正在检查、下载或安装，则禁用
+            if (this.status === 'checking' || this.status === 'downloading' || this.status === 'installing') {
+                return true;
+            }
+            
+            // 未解锁时，只有新版本才可用
+            if (!this.unlockInstall) {
+                return this.compareVersions(this.latestVersion, this.currentVersion) <= 0;
+            }
+            
+            // 解锁后，只要设备匹配就有下载链接就可用
+            return false;
         },
 
         // 版本比较结果文本
@@ -857,15 +888,10 @@ const update = defineComponent({
             }, 500);
         },
 
-        // 处理主要按钮点击
-        handleMainButton() {
-            if (this.status === 'available' && (this.deviceMatched || this.unlockInstall)) {
-                // 下载更新
-                this.downloadUpdate();
-            } else {
-                // 检查更新
-                this.checkForUpdates();
-            }
+        // 处理检查更新按钮点击
+        handleCheckUpdate() {
+            // 总是检查更新
+            this.checkForUpdates();
         },
 
         // 切换解锁状态
