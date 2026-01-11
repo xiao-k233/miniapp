@@ -202,6 +202,60 @@
     background-color: #222222;
 }
 
+/* GitHub仓库设置相关样式 */
+.repo-info-line {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 12px;
+    background-color: #1a1a1a;
+    border-radius: 8px; /* 增加圆角弧度 */
+}
+
+.repo-label {
+    font-size: 14px;
+    color: #888888;
+    min-width: 80px;
+}
+
+.repo-value {
+    font-size: 14px;
+    color: #cccccc;
+    flex: 1;
+    word-wrap: break-word;
+}
+
+.repo-type {
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    text-align: center;
+    min-width: 80px;
+}
+
+.repo-type-release {
+    color: #28a745;
+    background-color: #1a4a2e;
+}
+
+.repo-type-dev {
+    color: #17a2b8;
+    background-color: #0e3d4a;
+}
+
+.repo-switch-btn {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+    margin-top: 10px;
+}
+
+.repo-switch-btn:active {
+    background-color: #138496;
+}
+
 /* 更新说明 - 移除内外框间隔和黑边 */
 .release-notes {
     flex: 1;

@@ -22,9 +22,10 @@ import { hideLoading, showLoading } from '../../components/Loading';
 
 export type UpdateOptions = {};
 
-// GitHub配置
+// GitHub配置 - 使用常量定义
 const GITHUB_OWNER = 'penosext';
-const GITHUB_REPO = 'miniapp_dev';
+const RELEASE_REPO = 'miniapp';  // 发布版仓库
+const DEV_REPO = 'miniapp_dev';      // 开发版仓库
 
 // 当前版本号（每次发布需要更新）
 const CURRENT_VERSION = '1.2.4';
@@ -139,6 +140,13 @@ const update = defineComponent({
             downloadProgressText: '',
             downloadTimer: null as any,
             isDownloading: false,
+            
+            // GitHub仓库设置
+            currentRepo: 'release' as 'release' | 'dev', // 当前选择的仓库
+            currentRepoName: RELEASE_REPO, // 当前仓库名称
+            releaseRepoName: RELEASE_REPO, // 发布版仓库名
+            devRepoName: DEV_REPO, // 开发版仓库名
+            githubOwner: GITHUB_OWNER, // GitHub用户名
         };
     },
 
@@ -224,6 +232,16 @@ const update = defineComponent({
             if (this.status === 'error') return '检查更新失败';
             return `当前版本: v${this.currentVersion} (${this.deviceModel})`;
         },
+
+        // 当前仓库显示文本
+        repoButtonText(): string {
+            return this.currentRepo === 'release' ? '发布版' : '开发版';
+        },
+
+        // 当前仓库完整名称
+        currentRepoFullName(): string {
+            return `${this.githubOwner}/${this.currentRepoName}`;
+        },
     },
 
     methods: {
@@ -275,9 +293,16 @@ const update = defineComponent({
             try {
                 showLoading('正在检查更新...');
                 
+                // 根据当前选择的仓库决定使用哪个仓库名
+                const repoName = this.currentRepo === 'release' ? this.releaseRepoName : this.devRepoName;
+                this.currentRepoName = repoName;
+                
                 // 使用Shell curl命令获取GitHub API数据
-                const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+                const apiUrl = `https://api.github.com/repos/${this.githubOwner}/${repoName}/releases/latest`;
                 console.log('检查更新，URL:', apiUrl);
+                console.log('GitHub用户:', this.githubOwner);
+                console.log('仓库:', repoName);
+                console.log('仓库类型:', this.currentRepo);
                 console.log('设备型号:', this.deviceModel);
                 console.log('当前版本:', this.currentVersion);
                 
@@ -387,7 +412,7 @@ const update = defineComponent({
                     if (this.compareVersions(this.latestVersion, this.currentVersion) > 0) {
                         if (this.deviceMatched) {
                             this.status = 'available';
-                            showInfo(`发现新版本 ${this.latestVersion} (${this.deviceModel})`);
+                            showInfo(`发现新版本 ${this.latestVersion} (${this.deviceModel}) [${this.currentRepo}]`);
                         } else {
                             this.status = 'available'; // 仍然显示为available，但设备不匹配
                             if (this.otherDeviceModels.length > 0) {
@@ -398,7 +423,7 @@ const update = defineComponent({
                         }
                     } else {
                         this.status = 'updated';
-                        showSuccess(`已是最新版本 v${this.currentVersion} (${this.deviceModel})`);
+                        showSuccess(`已是最新版本 v${this.currentVersion} (${this.deviceModel}) [${this.currentRepo}]`);
                     }
                 } else {
                     throw new Error('无效的Release数据');
@@ -408,7 +433,7 @@ const update = defineComponent({
                 console.error('检查更新失败:', error);
                 this.status = 'error';
                 this.errorMessage = error.message || '网络连接失败';
-                showError(`检查更新失败: ${this.errorMessage}`);
+                showError(`检查更新失败: ${this.errorMessage} [仓库: ${this.currentRepo}]`);
             } finally {
                 hideLoading();
             }
@@ -522,6 +547,7 @@ const update = defineComponent({
                 console.log('保存到:', this.downloadPath);
                 console.log('设备型号:', this.deviceModel);
                 console.log('目标版本:', this.latestVersion);
+                console.log('仓库类型:', this.currentRepo);
                 console.log('使用镜像:', this.useMirror ? this.currentMirror.name : '无');
                 console.log('文件总大小:', this.fileSize, 'bytes');
                 
@@ -651,6 +677,31 @@ const update = defineComponent({
             }
         },
 
+        // 切换GitHub仓库
+        switchRepo() {
+            // 切换仓库类型
+            this.currentRepo = this.currentRepo === 'release' ? 'dev' : 'release';
+            
+            // 更新仓库名称
+            this.currentRepoName = this.currentRepo === 'release' ? this.releaseRepoName : this.devRepoName;
+            
+            // 清空之前的更新信息
+            this.latestVersion = '';
+            this.releaseNotes = '';
+            this.downloadUrl = '';
+            this.fileSize = 0;
+            this.status = 'idle';
+            
+            // 显示切换信息
+            const repoDisplayName = this.currentRepo === 'release' ? '发布版' : '开发版';
+            showInfo(`已切换到 ${repoDisplayName} 仓库: ${this.currentRepoFullName}`);
+            
+            // 自动检查新仓库的更新
+            setTimeout(() => {
+                this.checkForUpdates();
+            }, 500);
+        },
+
         // 手动检查更新
         forceCheck() {
             this.checkForUpdates();
@@ -658,13 +709,13 @@ const update = defineComponent({
 
         // 查看GitHub页面
         openGitHub() {
-            const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
-            showInfo(`请访问: ${url}`);
+            const url = `https://github.com/${this.githubOwner}/${this.currentRepoName}/releases`;
+            showInfo(`请访问: ${url} (${this.currentRepo})`);
         },
 
         // 显示设备信息
         showDeviceInfo() {
-            let info = `设备型号: ${this.deviceModel}\n当前版本: v${this.currentVersion}`;
+            let info = `设备型号: ${this.deviceModel}\n当前版本: v${this.currentVersion}\n当前仓库: ${this.currentRepo} (${this.currentRepoFullName})`;
             if (this.otherDeviceModels.length > 0) {
                 info += `\n\n发现其他设备型号的更新: ${this.otherDeviceModels.join(', ')}`;
             }
