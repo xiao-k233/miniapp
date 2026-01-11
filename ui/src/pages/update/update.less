@@ -107,6 +107,68 @@
     background-color: #4a3e1a;
 }
 
+/* 仓库类型颜色 */
+.repo-type-release {
+    color: #28a745;
+    background-color: #1a4a2e;
+}
+
+.repo-type-dev {
+    color: #17a2b8;
+    background-color: #0e3d4a;
+}
+
+/* 按钮行样式 */
+.button-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 15px;
+    gap: 10px;
+}
+
+.action-btn {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 10px; /* 增加圆角弧度 */
+    font-size: 14px;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+    min-width: 120px;
+    border: 1px solid transparent;
+}
+
+.action-btn:active {
+    opacity: 0.8;
+    transform: scale(0.98); /* 轻微缩小效果 */
+}
+
+.action-btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* 主按钮（检查更新/下载更新） */
+.main-btn {
+    background-color: #007acc;
+    border-color: #007acc;
+}
+
+.main-btn:active {
+    background-color: #005a99; /* 点击回亮效果 */
+}
+
+/* 仓库切换按钮 */
+.repo-btn {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.repo-btn:active {
+    background-color: #138496; /* 点击回亮效果 */
+}
+
 /* 卡片副标题 */
 .card-subtitle {
     font-size: 14px;
@@ -202,60 +264,6 @@
     background-color: #222222;
 }
 
-/* GitHub仓库设置相关样式 */
-.repo-info-line {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-    padding: 12px;
-    background-color: #1a1a1a;
-    border-radius: 8px; /* 增加圆角弧度 */
-}
-
-.repo-label {
-    font-size: 14px;
-    color: #888888;
-    min-width: 80px;
-}
-
-.repo-value {
-    font-size: 14px;
-    color: #cccccc;
-    flex: 1;
-    word-wrap: break-word;
-}
-
-.repo-type {
-    font-size: 14px;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-weight: bold;
-    text-align: center;
-    min-width: 80px;
-}
-
-.repo-type-release {
-    color: #28a745;
-    background-color: #1a4a2e;
-}
-
-.repo-type-dev {
-    color: #17a2b8;
-    background-color: #0e3d4a;
-}
-
-.repo-switch-btn {
-    background-color: #17a2b8;
-    border-color: #17a2b8;
-    margin-top: 10px;
-}
-
-.repo-switch-btn:active {
-    background-color: #138496;
-}
-
 /* 更新说明 - 移除内外框间隔和黑边 */
 .release-notes {
     flex: 1;
@@ -296,31 +304,6 @@
     color: #cccccc;
     flex: 1;
     word-wrap: break-word;
-}
-
-/* 操作按钮行 */
-.action-line {
-    display: flex;
-    justify-content: center;
-    margin-top: 10px;
-}
-
-.action-btn {
-    padding: 12px 24px; /* 增加内边距 */
-    background-color: #007acc;
-    border-radius: 10px; /* 增加圆角弧度 */
-    border: 1px solid #007acc;
-    font-size: 14px;
-    color: #ffffff;
-    font-weight: bold;
-    text-align: center;
-    min-width: 120px;
-}
-
-.action-btn:active {
-    background-color: #005a99; /* 点击回亮效果 */
-    opacity: 0.8;
-    transform: scale(0.98); /* 轻微缩小效果 */
 }
 
 /* 链接项目样式（可点击）- 与 about 页面保持一致 */

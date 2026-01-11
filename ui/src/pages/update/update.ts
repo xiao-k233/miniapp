@@ -24,7 +24,7 @@ export type UpdateOptions = {};
 
 // GitHub配置 - 使用常量定义
 const GITHUB_OWNER = 'penosext';
-const RELEASE_REPO = 'miniapp';  // 发布版仓库
+const RELEASE_REPO = 'miniapp_dev';  // 发布版仓库
 const DEV_REPO = 'miniapp_dev';      // 开发版仓库
 
 // 当前版本号（每次发布需要更新）
@@ -235,12 +235,35 @@ const update = defineComponent({
 
         // 当前仓库显示文本
         repoButtonText(): string {
-            return this.currentRepo === 'release' ? '发布版' : '开发版';
+            return this.currentRepo === 'release' ? '切换到开发版' : '切换到发布版';
         },
 
         // 当前仓库完整名称
         currentRepoFullName(): string {
             return `${this.githubOwner}/${this.currentRepoName}`;
+        },
+
+        // 下载按钮文本
+        downloadButtonText(): string {
+            if (this.status === 'available' && this.deviceMatched) {
+                return '下载更新';
+            } else if (this.status === 'downloading') {
+                return '下载中...';
+            } else if (this.status === 'installing') {
+                return '安装中...';
+            } else {
+                return '检查更新';
+            }
+        },
+
+        // 下载按钮是否可用
+        downloadButtonDisabled(): boolean {
+            return this.status === 'checking' || this.status === 'downloading' || this.status === 'installing';
+        },
+
+        // 仓库按钮是否可用
+        repoButtonDisabled(): boolean {
+            return this.status === 'checking' || this.status === 'downloading' || this.status === 'installing';
         },
     },
 
@@ -679,6 +702,11 @@ const update = defineComponent({
 
         // 切换GitHub仓库
         switchRepo() {
+            if (this.repoButtonDisabled) {
+                showWarning('正在检查或下载更新，请稍后再切换');
+                return;
+            }
+            
             // 切换仓库类型
             this.currentRepo = this.currentRepo === 'release' ? 'dev' : 'release';
             
@@ -702,9 +730,15 @@ const update = defineComponent({
             }, 500);
         },
 
-        // 手动检查更新
-        forceCheck() {
-            this.checkForUpdates();
+        // 处理主要按钮点击
+        handleMainButton() {
+            if (this.status === 'available' && this.deviceMatched) {
+                // 下载更新
+                this.downloadUpdate();
+            } else {
+                // 检查更新
+                this.checkForUpdates();
+            }
         },
 
         // 查看GitHub页面

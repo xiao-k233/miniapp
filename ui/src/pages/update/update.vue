@@ -21,8 +21,19 @@
 <text class="version-label">最新版本:</text>
 <text class="version-text version-new">v{{latestVersion}}</text>
 </div>
-<div class="action-line">
-<text @click="forceCheck" class="action-btn">检查更新</text>
+<div class="version-line">
+<text class="version-label">当前仓库:</text>
+<text class="version-text">{{currentRepoFullName}}</text>
+</div>
+<div class="version-line">
+<text class="version-label">仓库类型:</text>
+<text :class="'version-text ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">
+{{currentRepo === 'release' ? '发布版' : '开发版'}}
+</text>
+</div>
+<div class="button-row">
+<text @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">{{repoButtonText}}</text>
+<text @click="handleMainButton" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
 </div>
 </div>
 </div>
@@ -45,27 +56,6 @@
 <div class="mirror-status-info">
 <text class="mirror-current">{{currentMirror.name}}</text>
 <text :class="'mirror-status ' + (useMirror?'mirror-status-active':'mirror-status-disabled')">{{useMirror?'已启用':'未启用'}}</text>
-</div>
-</div>
-</div>
-
-<!-- GitHub仓库设置 -->
-<div class="section">
-<text class="section-title">GitHub仓库设置</text>
-<div class="info-card">
-<text class="card-subtitle">选择更新源</text>
-<div class="repo-info-line">
-<text class="repo-label">当前仓库:</text>
-<text class="repo-value">{{currentRepoFullName}}</text>
-</div>
-<div class="repo-info-line">
-<text class="repo-label">仓库类型:</text>
-<text :class="'repo-type ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">
-{{currentRepo === 'release' ? '发布版' : '开发版'}}
-</text>
-</div>
-<div class="action-line">
-<text @click="switchRepo" class="action-btn repo-switch-btn">{{repoButtonText}}仓库</text>
 </div>
 </div>
 </div>
@@ -120,8 +110,8 @@
 <div class="info-card">
 <text class="instruction-text">1. 点击"检查更新"按钮获取最新版本信息
 2. 左右滑动选择镜像源，点击按钮切换
-3. 点击"发布版/开发版仓库"切换更新源
-4. 如果有新版本，点击"下载并安装更新"按钮
+3. 点击"切换到开发版/发布版"切换更新源
+4. 如果有新版本，点击"下载更新"按钮
 5. 下载完成后会自动安装
 6. 安装完成后请重启应用
 7. 如果自动更新失败，可以手动下载安装</text>
