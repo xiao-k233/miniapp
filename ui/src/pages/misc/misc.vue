@@ -1,42 +1,70 @@
 <template>
   <div class="container">
     <scroller class="scroll-area" scroll-direction="vertical">
-
-      <div class="header">
-        <text class="title">杂项</text>
+      <!-- 页面标题 -->
+      <div class="section">
+        <text class="section-title">杂项设置</text>
       </div>
 
       <!-- 亮屏时间 -->
-      <div class="block">
-        <text class="label">亮屏时间</text>
-        <div class="btn-row">
-          <text class="btn" @click="setBrightTime(30, '30 秒')">30秒</text>
-          <text class="btn" @click="setBrightTime(1800, '30 分钟')">30分钟</text>
-          <text class="btn" @click="setBrightTime(3600, '1 小时')">1小时</text>
-        </div>
-        <div class="btn-row">
-          <text class="btn" @click="setBrightTime(7200, '2 小时')">2小时</text>
-          <text class="btn" @click="setBrightTime(10800, '3 小时')">3小时</text>
-          <text class="btn" @click="setBrightTime(2147483647, '无限')">无限</text>
+      <div class="section">
+        <text class="section-title">亮屏时间设置</text>
+        <div class="block">
+          <div class="btn-row">
+            <div class="btn-item" @click="setBrightTime(30, '30秒')">
+              <text class="btn-text">30秒</text>
+            </div>
+            <div class="btn-item" @click="setBrightTime(1800, '30分钟')">
+              <text class="btn-text">30分钟</text>
+            </div>
+          </div>
+          <div class="btn-row">
+            <div class="btn-item" @click="setBrightTime(3600, '1小时')">
+              <text class="btn-text">1小时</text>
+            </div>
+            <div class="btn-item" @click="setBrightTime(7200, '2小时')">
+              <text class="btn-text">2小时</text>
+            </div>
+          </div>
+          <div class="btn-row">
+            <div class="btn-item" @click="setBrightTime(10800, '3小时')">
+              <text class="btn-text">3小时</text>
+            </div>
+            <div class="btn-item" @click="setBrightTime(2147483647, '无限')">
+              <text class="btn-text">无限</text>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- 屏幕亮度 -->
-      <div class="block">
-        <text class="label">屏幕亮度</text>
-        <div class="btn-row">
-          <text class="btn" @click="setBrightness(30)">低</text>
-          <text class="btn" @click="setBrightness(60)">中</text>
-          <text class="btn" @click="setBrightness(100)">高</text>
+      <div class="section">
+        <text class="section-title">屏幕亮度设置</text>
+        <div class="block">
+          <div class="btn-row">
+            <div class="btn-item" @click="setBrightness(30)">
+              <text class="btn-text">低亮度</text>
+            </div>
+            <div class="btn-item" @click="setBrightness(60)">
+              <text class="btn-text">中亮度</text>
+            </div>
+            <div class="btn-item" @click="setBrightness(100)">
+              <text class="btn-text">高亮度</text>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- 手电筒 -->
-      <div class="block">
-        <text class="label">手电筒</text>
-        <text class="btn wide" @click="toggleTorch">
-          {{ torchOn ? '关闭手电' : '打开手电' }}
-        </text>
+      <div class="section">
+        <text class="section-title">手电筒控制</text>
+        <div class="block">
+          <div class="btn-row">
+            <div class="btn-item wide" @click="toggleTorch">
+              <text class="btn-text">{{ torchOn ? '关闭手电筒' : '打开手电筒' }}</text>
+            </div>
+          </div>
+        </div>
       </div>
 
     </scroller>
