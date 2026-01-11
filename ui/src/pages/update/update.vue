@@ -40,10 +40,16 @@
 <text @click="handleCheckUpdate" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
 </div>
 <div class="button-row">
-<text @click="toggleUnlock" :class="'action-btn ' + unlockButtonClass + ' ' + (repoButtonDisabled?'disabled':'')">
+<text @click="toggleUnlock" 
+      :class="['action-btn', unlockButtonClass, repoButtonDisabled?'disabled':'']"
+      style="flex: 1; height: 40px; line-height: 40px; border-radius: 10px; font-size: 14px; color: #ffffff; font-weight: bold; text-align: center; display: flex; align-items: center; justify-content: center;">
 {{unlockButtonText}}
 </text>
-<text @click="downloadUpdate" :class="'action-btn install-btn ' + (installButtonDisabled?'disabled':'')">{{installButtonText}}</text>
+<text @click="downloadUpdate" 
+      :class="['action-btn', 'install-btn', installButtonDisabled?'disabled':'']"
+      style="flex: 1; height: 40px; line-height: 40px; border-radius: 10px; font-size: 14px; color: #ffffff; font-weight: bold; text-align: center; display: flex; align-items: center; justify-content: center;">
+{{installButtonText}}
+</text>
 </div>
 </div>
 </div>

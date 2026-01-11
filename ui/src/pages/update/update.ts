@@ -24,7 +24,7 @@ export type UpdateOptions = {};
 
 // GitHub配置 - 使用常量定义
 const GITHUB_OWNER = 'penosext';
-const RELEASE_REPO = 'miniapp_dev';  // 发布版仓库
+const RELEASE_REPO = 'miniapp';  // 发布版仓库
 const DEV_REPO = 'miniapp_dev';      // 开发版仓库
 
 // 当前版本号（每次发布需要更新）
