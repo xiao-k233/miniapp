@@ -149,7 +149,7 @@
     width: 100%;
 }
 
-/* 修改：使用flex布局确保文字居中 */
+/* 修改：移除默认背景色，让具体按钮类控制 */
 .action-btn {
     flex: 1;
     height: 40px;
@@ -165,8 +165,6 @@
     white-space: nowrap; /* 防止文字换行 */
     text-overflow: ellipsis; /* 文字过长时显示省略号 */
     padding: 0 8px; /* 添加内边距，确保文字不紧贴边缘 */
-    background-color: #007acc; /* 默认背景色 - 蓝色 */
-    border-color: #007acc; /* 默认边框色 - 蓝色 */
     cursor: pointer; /* 鼠标指针 */
     user-select: none; /* 禁止文字选中 */
 }
@@ -433,7 +431,7 @@
     border-radius: 8px;
 }
 
-/* 确保按钮内部文本样式正确 - 移除之前的text样式，整合到.action-btn中 */
+/* 确保按钮内部文本样式正确 */
 .action-btn text {
     font-size: 14px;
     font-weight: bold;
