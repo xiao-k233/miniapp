@@ -37,20 +37,20 @@
 <!-- 按钮组 -->
 <div class="button-row">
 <div @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">
-<text>{{repoButtonText}}</text>
+{{repoButtonText}}
 </div>
 <div @click="handleCheckUpdate" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">
-<text>{{downloadButtonText}}</text>
+{{downloadButtonText}}
 </div>
 </div>
 
 <div class="button-row">
 <div @click="toggleUnlock" :class="['action-btn', unlockButtonClass, repoButtonDisabled?'disabled':'']">
-<text>{{unlockButtonText}}</text>
+{{unlockButtonText}}
 </div>
 <!-- 安装按钮：根据canInstall状态动态切换类 -->
 <div @click="downloadUpdate" :class="['action-btn', installButtonClass, installButtonDisabled?'disabled':'']">
-<text>{{installButtonText}}</text>
+{{installButtonText}}
 </div>
 </div>
 
