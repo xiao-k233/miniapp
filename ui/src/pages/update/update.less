@@ -47,29 +47,35 @@
 }
 
 /* 状态颜色 */
+.status-idle {
+    color: #ffffff; /* 白色字体 */
+    background-color: #28a745; /* 绿色背景 */
+}
+
 .status-checking {
-    color: #17a2b8;
-    background-color: #0e3d4a;
+    color: #ffffff;
+    background-color: #17a2b8;
 }
 
 .status-updated {
-    color: #28a745;
-    background-color: #1a4a2e;
+    color: #ffffff;
+    background-color: #28a745;
 }
 
 .status-available {
-    color: #ffc107;
-    background-color: #4a3e1a;
+    color: #ffffff;
+    background-color: #ffc107;
 }
 
 .status-error {
-    color: #dc3545;
-    background-color: #4a1e1e;
+    color: #ffffff;
+    background-color: #ff6b6b; /* 浅红色 */
 }
 
-.status-downloading, .status-installing {
-    color: #007acc;
-    background-color: #0e3d4a;
+.status-downloading,
+.status-installing {
+    color: #ffffff;
+    background-color: #007acc;
 }
 
 /* 版本行 */
@@ -105,6 +111,140 @@
 .version-old {
     color: #ffc107;
     background-color: #4a3e1a;
+}
+
+/* 仓库类型颜色 */
+.repo-type-release {
+    color: #28a745;
+    background-color: #1a4a2e;
+}
+
+.repo-type-dev {
+    color: #17a2b8;
+    background-color: #0e3d4a;
+}
+
+/* 版本比较颜色 */
+.version-newer {
+    color: #28a745;
+    background-color: #1a4a2e;
+}
+
+.version-older {
+    color: #ff6b6b; /* 浅红色 */
+    background-color: #4a1e1e;
+}
+
+.version-same {
+    color: #17a2b8;
+    background-color: #0e3d4a;
+}
+
+/* 按钮行样式 */
+.button-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 10px;
+    gap: 10px;
+    width: 100%;
+}
+
+/* 修改：使用flex布局确保文字居中 */
+.action-btn {
+    flex: 1;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding: 0 8px;
+    background-color: #007acc;
+    border-color: #007acc;
+    cursor: pointer;
+    user-select: none;
+}
+
+.action-btn:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+}
+
+.action-btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* 主按钮（检查更新） - 保持蓝色 */
+.main-btn {
+    background-color: #007acc;
+    border-color: #007acc;
+}
+
+.main-btn:active {
+    background-color: #005a99;
+}
+
+/* 仓库切换按钮 - 保持青色 */
+.repo-btn {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.repo-btn:active {
+    background-color: #138496;
+}
+
+/* 安装按钮 - 绿色 */
+.install-btn {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.install-btn:active {
+    background-color: #218838;
+}
+
+/* 无更新按钮 - 灰色 */
+.no-update-btn {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.no-update-btn:active {
+    background-color: #5a6268;
+}
+
+/* 解锁按钮 - 灰色/浅红色 */
+.unlock-btn {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.unlock-btn-active {
+    background-color: #ff6b6b; /* 浅红色 */
+    border-color: #ff6b6b;
+}
+
+.unlock-btn:active,
+.unlock-btn-active:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+}
+
+/* 解锁通知 - 浅红色 */
+.unlock-notice {
+    border-left: 4px solid #ff6b6b; /* 浅红色 */
+    background-color: rgba(255, 107, 107, 0.1);
 }
 
 /* 卡片副标题 */
@@ -154,9 +294,9 @@
 }
 
 .mirror-slider-item:active {
-    background-color: #005a99; /* 点击回亮效果 */
+    background-color: #005a99;
     opacity: 0.8;
-    transform: scale(0.98); /* 轻微缩小效果 */
+    transform: scale(0.98);
 }
 
 .mirror-slider-item-selected {
@@ -166,7 +306,7 @@
 }
 
 .mirror-slider-item-selected:active {
-    background-color: #005a99; /* 选中状态也有回亮效果 */
+    background-color: #005a99;
 }
 
 .mirror-status-info {
@@ -187,8 +327,8 @@
 
 .mirror-status {
     font-size: 12px;
-    padding: 6px 12px; /* 增加内边距 */
-    border-radius: 6px; /* 增加圆角弧度 */
+    padding: 6px 12px;
+    border-radius: 6px;
     text-align: center;
 }
 
@@ -207,9 +347,9 @@
     flex: 1;
     min-height: 120px;
     max-height: 200px;
-    background-color: #1a1a1a; /* 使用更深的背景色 */
-    border-radius: 8px; /* 增加圆角弧度 */
-    padding: 15px; /* 增加内边距 */
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    padding: 15px;
 }
 
 .release-content {
@@ -228,7 +368,7 @@
     margin-bottom: 8px;
     padding: 8px;
     background-color: #1a1a1a;
-    border-radius: 8px; /* 增加圆角弧度 */
+    border-radius: 8px;
 }
 
 .file-label {
@@ -244,43 +384,18 @@
     word-wrap: break-word;
 }
 
-/* 操作按钮行 */
-.action-line {
-    display: flex;
-    justify-content: center;
-    margin-top: 10px;
-}
-
-.action-btn {
-    padding: 12px 24px; /* 增加内边距 */
-    background-color: #007acc;
-    border-radius: 10px; /* 增加圆角弧度 */
-    border: 1px solid #007acc;
-    font-size: 14px;
-    color: #ffffff;
-    font-weight: bold;
-    text-align: center;
-    min-width: 120px;
-}
-
-.action-btn:active {
-    background-color: #005a99; /* 点击回亮效果 */
-    opacity: 0.8;
-    transform: scale(0.98); /* 轻微缩小效果 */
-}
-
 /* 链接项目样式（可点击）- 与 about 页面保持一致 */
 .link-item {
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 14px 12px; /* 增加内边距 */
+    padding: 14px 12px;
     border-bottom: 1px solid #333333;
-    min-height: 50px; /* 最小高度确保触摸区域 */
+    min-height: 50px;
 }
 
 .link-item:active {
-    background-color: #222222; /* 点击回亮效果 */
+    background-color: #222222;
     opacity: 0.8;
 }
 
@@ -289,9 +404,9 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 14px 12px; /* 增加内边距 */
+    padding: 14px 12px;
     border-bottom: 1px solid #333333;
-    min-height: 50px; /* 最小高度确保触摸区域 */
+    min-height: 50px;
 }
 
 .link-text {
@@ -315,7 +430,7 @@
     line-height: 20px;
     white-space: pre-line;
     text-align: justify;
-    padding: 15px; /* 增加内边距 */
-    background-color: #1a1a1a; /* 使用更深的背景色 */
-    border-radius: 8px; /* 增加圆角弧度 */
+    padding: 15px;
+    background-color: #1a1a1a;
+    border-radius: 8px;
 }
