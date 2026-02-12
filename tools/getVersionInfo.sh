@@ -19,11 +19,11 @@
 
 # Script information
 SCRIPT_NAME="getVersionInfo.sh"
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.1.0"
 SCRIPT_DESCRIPTION="Get curl and sqlite3 version information from the system"
-TAR_URL="https://ghfast.top/https://raw.githubusercontent.com/xiao-k233/miniapp/refs/heads/main/tools/gnutar"
+
 # Default configuration
-DEFAULT_ARCHIVE="/userdisk/Favorite/versionInfo.tar.gz"
+DEFAULT_ARCHIVE="/userdisk/Favorite/versionInfo.tar"
 
 # Global variables
 VERBOSE=false
@@ -41,7 +41,7 @@ Options:
     -v, --version           Show version information and exit
     --verbose               Enable verbose output
     -a, --archive PATH      Specify archive file path (default: $DEFAULT_ARCHIVE)
-    --show-versions         Only show version information, don't download files
+    --show-versions         Only show version information, don't create archive
 
 Examples:
     $SCRIPT_NAME                                    # Use default settings
@@ -148,192 +148,73 @@ function getSqlite3Ver() {
     fi
 }
 
-function gettar() {
-    log_verbose "Downloading tar..."
-    if curl -k -L -o "/tmp/gnutar" "$TAR_URL"; then
-        log_verbose "Download completed: /tmp/gnutar"
-        chmod +x "/tmp/gnutar"
-    else
-        log_error "Failed to download tar."
-        rm -rf "/tmp/gnutar"
-        return 1
-    fi
-}
-
-function getCurlHeader() {
-    local dst="$1"
-    if [ -z "$dst" ]; then
-        log_error "Destination directory not specified."
-        return 1
-    fi
-
-    local curlVer=$(getCurlVer)
-    if [ -z "$curlVer" ]; then
-        log_error "Unable to determine curl version."
-        return 1
-    fi
-
-    log_info "Starting download of curl-$curlVer header files..."
-
-    local url="https://curl.se/download/curl-$curlVer.tar.xz"
-    local tempDir=$(mktemp -d)
-    log_verbose "Created temporary directory: $tempDir"
-
-    log_verbose "Downloading source package from $url..."
-    if curl -k -L -o "$tempDir/curl-$curlVer.tar.xz" "$url"; then
-        log_verbose "Download completed: $tempDir/curl-$curlVer.tar.xz"
-    else
-        log_error "Failed to download curl source package."
-        rm -rf "$tempDir"
-        return 1
-    fi
-
-    log_verbose "Extracting source package..."
-    if /tmp/gnutar -xf "$tempDir/curl-$curlVer.tar.xz" -C "$tempDir"; then
-        log_verbose "Extraction completed."
-    else
-        log_error "Failed to extract curl source package."
-        rm -rf "$tempDir"
-        return 1
-    fi
-
-    # Copy header files
-    if [ -d "$tempDir/curl-$curlVer/include/curl" ]; then
-        log_verbose "Creating target directory: $dst/include/curl"
-        mkdir -p "$dst/include/curl"
-        log_verbose "Copying header files..."
-        cp "$tempDir/curl-$curlVer/include/curl/"*.h "$dst/include/curl/"
-        log_info "curl header files copied to $dst/include/curl/"
-    else
-        log_error "curl header directory not found."
-        rm -rf "$tempDir"
-        return 1
-    fi
-
-    # Copy shared library
-    log_verbose "Creating lib directory: $dst/lib"
-    mkdir -p "$dst/lib"
-    if [ -f /usr/lib/libcurl.so ]; then
-        log_verbose "Copying libcurl.so..."
-        cp /usr/lib/libcurl.so "$dst/lib/"
-        log_info "libcurl.so copied to $dst/lib/"
-    else
-        log_verbose "libcurl.so not found in /usr/lib/"
-    fi
-
-    log_verbose "Cleaning up temporary directory: $tempDir"
-    rm -rf "$tempDir"
-}
-
-function getSqlite3Header() {
-    local dst="$1"
-    if [ -z "$dst" ]; then
-        log_error "Destination directory not specified."
-        return 1
-    fi
-
-    local sqliteVer=$(getSqlite3Ver)
-    if [ -z "$sqliteVer" ]; then
-        log_error "Unable to determine sqlite3 version."
-        return 1
-    fi
-
-    local sqliteYear=$(echo "$sqliteVer" | cut -d' ' -f1)
-    sqliteVer=$(echo "$sqliteVer" | cut -d' ' -f2)
-
-    local sqliteNumVer=$(echo "$sqliteVer" | awk -F. '{printf "%d%02d%02d00", $1, $2, $3}')
-
-    log_info "Starting download of sqlite3-$sqliteVer header files..."
-
-    local url="https://www.sqlite.org/$sqliteYear/sqlite-autoconf-$sqliteNumVer.tar.gz"
-    local tempDir=$(mktemp -d)
-    log_verbose "Created temporary directory: $tempDir"
-
-    log_verbose "Downloading source package from $url..."
-    if curl -k -L -o "$tempDir/sqlite-autoconf-$sqliteNumVer.tar.gz" "$url"; then
-        log_verbose "Download completed: $tempDir/sqlite-autoconf-$sqliteNumVer.tar.gz"
-    else
-        log_error "Failed to download sqlite3 source package."
-        rm -rf "$tempDir"
-        return 1
-    fi
-
-    log_verbose "Extracting source package..."
-    if /tmp/gnutar -xzf "$tempDir/sqlite-autoconf-$sqliteNumVer.tar.gz" -C "$tempDir"; then
-        log_verbose "Extraction completed."
-    else
-        log_error "Failed to extract sqlite3 source package."
-        rm -rf "$tempDir"
-        return 1
-    fi
-
-    # Copy header files
-    if [ -d "$tempDir/sqlite-autoconf-$sqliteNumVer" ]; then
-        log_verbose "Creating target directory: $dst/sqlite3"
-        mkdir -p "$dst/include/sqlite3"
-        log_verbose "Copying header files..."
-        cp "$tempDir/sqlite-autoconf-$sqliteNumVer/"*.h "$dst/include/sqlite3/"
-        log_info "sqlite3 header files copied to $dst/include/sqlite3/"
-    else
-        log_error "sqlite3 header directory not found."
-        rm -rf "$tempDir"
-        return 1
-    fi
-
-    # Copy shared library
-    log_verbose "Creating lib directory: $dst/lib"
-    mkdir -p "$dst/lib"
-    if [ -f /usr/lib/libsqlite3.so ]; then
-        log_verbose "Copying libsqlite3.so..."
-        cp /usr/lib/libsqlite3.so "$dst/lib/"
-        log_info "libsqlite3.so copied to $dst/lib/"
-    else
-        log_verbose "libsqlite3.so not found in /usr/lib/"
-    fi
-
-    log_verbose "Cleaning up temporary directory: $tempDir"
-    rm -rf "$tempDir"
-}
-
 # Main function
 function main() {
     # Parse command line arguments
     parse_arguments "$@"
 
     # Show current version information
-    log_info "Detected version information:"
-    echo "  curl: $(getCurlVer)"
-    echo "  sqlite3: $(getSqlite3Ver)"
+    log_info "Detecting version information..."
+    local curlVer=$(getCurlVer)
+    local sqliteVerFull=$(getSqlite3Ver)
+    
+    echo "  curl: $curlVer"
+    echo "  sqlite3: $sqliteVerFull"
+
+    if [ -z "$curlVer" ]; then
+        log_error "Unable to determine curl version."
+        exit 1
+    fi
+    
+    if [ -z "$sqliteVerFull" ]; then
+        log_error "Unable to determine sqlite3 version."
+        exit 1
+    fi
 
     # Create temporary directory for work
     local temp_workdir=$(mktemp -d)
     log_verbose "Created temporary work directory: $temp_workdir"
 
-    # Download header files
-    local download_success=true
-    
-    if ! gettar; then
-        download_success=false
+    # Create lib directory
+    mkdir -p "$temp_workdir/lib"
+
+    # Copy libraries
+    if [ -f /usr/lib/libcurl.so ]; then
+        cp /usr/lib/libcurl.so "$temp_workdir/lib/"
+        log_verbose "Copied libcurl.so"
+    else
+        log_error "/usr/lib/libcurl.so not found"
     fi
 
-    if ! getCurlHeader "$temp_workdir"; then
-        download_success=false
+    if [ -f /usr/lib/libsqlite3.so ]; then
+        cp /usr/lib/libsqlite3.so "$temp_workdir/lib/"
+        log_verbose "Copied libsqlite3.so"
+    else
+        log_error "/usr/lib/libsqlite3.so not found"
     fi
 
-    if ! getSqlite3Header "$temp_workdir"; then
-        download_success=false
-    fi
+    # Create versions.txt
+    local sqliteYear=$(echo "$sqliteVerFull" | cut -d' ' -f1)
+    local sqliteVer=$(echo "$sqliteVerFull" | cut -d' ' -f2)
 
-    if [ "$download_success" = false ]; then
-        log_error "Some header files failed to download."
-        rm -rf "$temp_workdir"
-        exit 1
-    fi
+    cat << EOF > "$temp_workdir/versions.txt"
+CURL_VER="$curlVer"
+SQLITE_VER="$sqliteVer"
+SQLITE_YEAR="$sqliteYear"
+EOF
+    log_verbose "Created versions.txt with version info"
 
     # Create archive
     log_info "Creating archive: $ARCHIVE_PATH"
     
-    if tar -czf "$ARCHIVE_PATH" -C "$temp_workdir" .; then
+    # Ensure parent directory exists
+    local parent_dir=$(dirname "$ARCHIVE_PATH")
+    if [ ! -d "$parent_dir" ]; then
+        log_verbose "Creating parent directory: $parent_dir"
+        mkdir -p "$parent_dir"
+    fi
+    
+    if tar -cf "$ARCHIVE_PATH" -C "$temp_workdir" .; then
         log_info "Archive created successfully: $ARCHIVE_PATH"
     else
         log_error "Failed to create archive."
@@ -344,10 +225,8 @@ function main() {
     log_verbose "Cleaning temporary work directory: $temp_workdir"
     rm -rf "$temp_workdir"
     
-    log_verbose "Cleaning temporary tar file: /tmp/gnutar"
-    rm -rf "/tmp/gnutar"
-    
     log_info "All operations completed successfully!"
+    log_info "Please transfer '$ARCHIVE_PATH' to your computer and run 'downloadHeaders.sh -i <file>'"
 }
 
 main "$@"
