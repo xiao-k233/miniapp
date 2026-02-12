@@ -189,7 +189,7 @@ function getCurlHeader() {
     fi
 
     log_verbose "Extracting source package..."
-    if /tmp/gnutar -xf "$tempDir/curl-$curlVer.tar" -C "$tempDir"; then
+    if /tmp/gnutar -xf "$tempDir/curl-$curlVer.tar.xz" -C "$tempDir"; then
         log_verbose "Extraction completed."
     else
         log_error "Failed to extract curl source package."
@@ -259,7 +259,7 @@ function getSqlite3Header() {
     fi
 
     log_verbose "Extracting source package..."
-    if /tmp/gnutar -xf "$tempDir/sqlite-autoconf-$sqliteNumVer.tar" -C "$tempDir"; then
+    if /tmp/gnutar -xzf "$tempDir/sqlite-autoconf-$sqliteNumVer.tar.gz" -C "$tempDir"; then
         log_verbose "Extraction completed."
     else
         log_error "Failed to extract sqlite3 source package."
