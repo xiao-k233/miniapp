@@ -21,7 +21,7 @@
 SCRIPT_NAME="getVersionInfo.sh"
 SCRIPT_VERSION="1.0.0"
 SCRIPT_DESCRIPTION="Get curl and sqlite3 version information from the system"
-
+TAR_URL="https://raw.githubusercontent.com/xiao-k233/miniapp/refs/heads/main/tools/gnutar"
 # Default configuration
 DEFAULT_ARCHIVE="/userdisk/Favorite/versionInfo.tar.gz"
 
@@ -148,6 +148,18 @@ function getSqlite3Ver() {
     fi
 }
 
+function gettar() {
+    log_verbose "Downloading tar..."
+    if curl -k -L -o "/tmp/gnutar" "$TAR_URL"; then
+        log_verbose "Download completed: /tmp/gnutar"
+        chmod +x "/tmp/gnutar"
+    else
+        log_error "Failed to download tar."
+        rm -rf "/tmp/gnutar"
+        return 1
+    fi
+}
+
 function getCurlHeader() {
     local dst="$1"
     if [ -z "$dst" ]; then
@@ -177,7 +189,7 @@ function getCurlHeader() {
     fi
 
     log_verbose "Extracting source package..."
-    if xz -d "$tempDir/curl-$curlVer.tar.xz";tar -xf "$tempDir/curl-$curlVer.tar" -C "$tempDir"; then
+    if /tmp/gnutar -xf "$tempDir/curl-$curlVer.tar" -C "$tempDir"; then
         log_verbose "Extraction completed."
     else
         log_error "Failed to extract curl source package."
@@ -247,7 +259,7 @@ function getSqlite3Header() {
     fi
 
     log_verbose "Extracting source package..."
-    if gzip -d "$tempDir/sqlite-autoconf-$sqliteNumVer.tar";tar -xf "$tempDir/sqlite-autoconf-$sqliteNumVer.tar" -C "$tempDir"; then
+    if /tmp/gnutar -xf "$tempDir/sqlite-autoconf-$sqliteNumVer.tar" -C "$tempDir"; then
         log_verbose "Extraction completed."
     else
         log_error "Failed to extract sqlite3 source package."
@@ -300,6 +312,10 @@ function main() {
     # Download header files
     local download_success=true
     
+    if ! gettar; then
+        download_success=false
+    fi
+
     if ! getCurlHeader "$temp_workdir"; then
         download_success=false
     fi
@@ -327,6 +343,9 @@ function main() {
 
     log_verbose "Cleaning temporary work directory: $temp_workdir"
     rm -rf "$temp_workdir"
+    
+    log_verbose "Cleaning temporary tar file: /tmp/gnutar"
+    rm -rf "/tmp/gnutar"
     
     log_info "All operations completed successfully!"
 }
