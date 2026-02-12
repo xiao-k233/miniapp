@@ -168,7 +168,7 @@ function getCurlHeader() {
     log_verbose "Created temporary directory: $tempDir"
 
     log_verbose "Downloading source package from $url..."
-    if curl -k -L --parallel --parallel-max 4 -o "$tempDir/curl-$curlVer.tar.xz" "$url"; then
+    if curl -k -L -o "$tempDir/curl-$curlVer.tar.xz" "$url"; then
         log_verbose "Download completed: $tempDir/curl-$curlVer.tar.xz"
     else
         log_error "Failed to download curl source package."
@@ -238,7 +238,7 @@ function getSqlite3Header() {
     log_verbose "Created temporary directory: $tempDir"
 
     log_verbose "Downloading source package from $url..."
-    if curl -k -L --parallel --parallel-max 4 -o "$tempDir/sqlite-autoconf-$sqliteNumVer.tar.gz" "$url"; then
+    if curl -k -L -o "$tempDir/sqlite-autoconf-$sqliteNumVer.tar.gz" "$url"; then
         log_verbose "Download completed: $tempDir/sqlite-autoconf-$sqliteNumVer.tar.gz"
     else
         log_error "Failed to download sqlite3 source package."
