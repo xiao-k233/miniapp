@@ -21,7 +21,7 @@
 SCRIPT_NAME="getVersionInfo.sh"
 SCRIPT_VERSION="1.0.0"
 SCRIPT_DESCRIPTION="Get curl and sqlite3 version information from the system"
-TAR_URL="https://raw.githubusercontent.com/xiao-k233/miniapp/refs/heads/main/tools/gnutar"
+TAR_URL="https://ghfast.top/https://raw.githubusercontent.com/xiao-k233/miniapp/refs/heads/main/tools/gnutar"
 # Default configuration
 DEFAULT_ARCHIVE="/userdisk/Favorite/versionInfo.tar.gz"
 
