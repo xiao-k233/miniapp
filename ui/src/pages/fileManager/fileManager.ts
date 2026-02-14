@@ -479,7 +479,7 @@ export default defineComponent({
         }
         
         // 判断文件类型，如果是文本文件则用编辑器打开
-        const isTextFile = file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash|log|conf|ini|yml|yaml)$/i);
+        const isTextFile = file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|cfg|sh|bash|log|conf|ini|yml|yaml)$/i);
         
         if (isTextFile) {
           // 用文件编辑器打开
