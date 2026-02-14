@@ -176,6 +176,16 @@ export default defineComponent({
       const lowerCmd = cmd.toLowerCase();
       
       switch (lowerCmd) {
+        case 'halt':
+          this.addTerminalLine('error', '危险命令不予执行');
+          return true;
+        case 'reboot':
+          this.addTerminalLine('error', '危险命令不予执行');
+          return true;
+        case 'poweroff':
+          this.addTerminalLine('error', '危险命令不予执行');
+          return true;
+          
         case 'help':
           this.showHelp();
           return true;
