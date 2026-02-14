@@ -28,9 +28,9 @@ const RELEASE_REPO = 'miniapp';  // 发布版仓库
 const DEV_REPO = 'miniapp_dev';      // 开发版仓库
 
 // 当前版本号（每次发布需要更新）
-const CURRENT_VERSION = '1.2.4';
+const CURRENT_VERSION = '1.2.11';
 // 设备型号（根据设备设置）
-const DEVICE_MODEL = 'a6p'; // 例如: a6p, a6x, a5, c7 等
+const DEVICE_MODEL = 'x7'; // 例如: a6p, a6x, a5, c7 等
 
 // 镜像源配置 - 添加buttonName字段显示简短名称
 const MIRRORS = [
