@@ -71,6 +71,13 @@ export default defineComponent({
       );
     },
 
+    setPerformanceMode(mode: string, label: string) {
+      this.execShell(
+        `freq_adj ${mode}`,
+        `性能模式：${label}`
+      );
+    },
+
     /* ========== 手电筒 ========== */
     toggleTorch() {
       this.torchOn = !this.torchOn;

@@ -55,6 +55,23 @@
         </div>
       </div>
 
+      <div class="section">
+        <text class="section-title">性能调节</text>
+        <div class="block">
+          <div class="btn-row">
+            <div class="btn-item" @click="setPerformanceMode('low', '省电')">
+              <text class="btn-text">省电</text>
+            </div>
+            <div class="btn-item" @click="setPerformanceMode('ondemand', '动态')">
+              <text class="btn-text">动态</text>
+            </div>
+            <div class="btn-item" @click="setPerformanceMode('high', '高性能')">
+              <text class="btn-text">高性能</text>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <!-- 手电筒 -->
       <div class="section">
         <text class="section-title">手电筒控制</text>
