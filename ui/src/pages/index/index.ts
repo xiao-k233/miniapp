@@ -30,6 +30,9 @@ const index = defineComponent({
         openAi() {
             $falcon.navTo("ai", {});
         },
+        Camera() {
+            $falcon.navTo("camera", {});
+        },
         PenTerm() {
             $falcon.navTo("shell", {});
         },

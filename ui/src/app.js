@@ -33,7 +33,7 @@ class App extends $falcon.App {
     // 屏幕分辨率适配机制:
     // 当 viewPort 设置750时, 所有元素尺寸可按照设计稿为 750px 宽度标准编写,
     // 最后系统会动态计算屏幕实际尺寸并显示.
-    this.setViewPort(600)
+    this.setViewPort(650)
 
     // 设置页面基类,应用全局的$falcon.Page将被替换成此处指定的BasePage.
     // 继承自$falcon.Page的页面将继承自改基类.
