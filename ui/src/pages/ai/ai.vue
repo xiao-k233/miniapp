@@ -24,7 +24,45 @@
                 <scroller ref="messageScroller" class="messages-scroller" scroll-direction="vertical"
                     :show-scrollbar="true">
                     <div v-for="message in displayMessages" :key="message.id">
-                        <text :class="'message message-' + message.role">{{ message.content }}</text>
+                        <div :class="'message message-' + message.role">
+                            <template v-for="(block, blockIndex) in renderBlocks(message.content)" :key="message.id + '_' + blockIndex">
+                                <div class="md-block">
+                                    <div v-if="block.type === 'heading'" class="md-line">
+                                        <template v-for="(token, tokenIndex) in block.tokens" :key="tokenIndex">
+                                            <text :class="getInlineClass(token.type, block.level)">{{ token.content }}</text>
+                                        </template>
+                                    </div>
+                                    <div v-else-if="block.type === 'paragraph'">
+                                        <div v-for="(line, lineIndex) in block.lines" :key="lineIndex" class="md-line">
+                                            <template v-for="(token, tokenIndex) in line" :key="tokenIndex">
+                                                <text :class="getInlineClass(token.type)">{{ token.content }}</text>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div v-else-if="block.type === 'list'" class="md-list">
+                                        <div v-for="(item, itemIndex) in block.items" :key="itemIndex" class="md-list-item">
+                                            <text class="md-list-marker">{{ block.ordered ? (itemIndex + 1) + '.' : '•' }}</text>
+                                            <div class="md-line md-list-content">
+                                                <template v-for="(token, tokenIndex) in item" :key="tokenIndex">
+                                                    <text :class="getInlineClass(token.type)">{{ token.content }}</text>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-else-if="block.type === 'quote'" class="md-quote">
+                                        <div v-for="(line, lineIndex) in block.lines" :key="lineIndex" class="md-line">
+                                            <template v-for="(token, tokenIndex) in line" :key="tokenIndex">
+                                                <text :class="getInlineClass(token.type)">{{ token.content }}</text>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div v-else-if="block.type === 'code'" class="md-code">
+                                        <text class="md-code-text">{{ block.content }}</text>
+                                    </div>
+                                    <div v-else-if="block.type === 'hr'" class="md-hr"></div>
+                                </div>
+                            </template>
+                        </div>
                         <text v-if="![0, 1, 6].includes(message.stopReason)" class="stop-reason-warning">{{
                             getStopReasonText(message.stopReason) }}</text>
                         <div v-if="message.role === 0 || message.role === 1"

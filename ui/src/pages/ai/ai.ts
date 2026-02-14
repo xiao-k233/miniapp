@@ -20,8 +20,16 @@ import { AI } from 'langningchen';
 import { ROLE, ConversationNode, STOP_REASON } from '../../@types/langningchen';
 import { showError } from '../../components/ToastMessage';
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
-
 export type aiOptions = {};
+
+type InlineToken = { type: 'text' | 'bold' | 'italic' | 'code'; content: string };
+type MarkdownBlock =
+    | { type: 'heading'; level: number; tokens: InlineToken[] }
+    | { type: 'paragraph'; lines: InlineToken[][] }
+    | { type: 'list'; items: InlineToken[][]; ordered: boolean }
+    | { type: 'quote'; lines: InlineToken[][] }
+    | { type: 'code'; content: string; language: string }
+    | { type: 'hr' };
 
 const ai = defineComponent({
     data() {
@@ -276,6 +284,171 @@ const ai = defineComponent({
                 default:
                     return '未知';
             }
+        },
+        getInlineClass(type: InlineToken['type'], headingLevel?: number): string {
+            const base = headingLevel ? `md-text md-heading md-heading-${headingLevel}` : 'md-text';
+            if (type === 'bold') return `${base} md-bold`;
+            if (type === 'italic') return `${base} md-italic`;
+            if (type === 'code') return `${base} md-inline-code`;
+            return base;
+        },
+        renderBlocks(content: string): MarkdownBlock[] {
+            const blocks: MarkdownBlock[] = [];
+            if (!content) return blocks;
+            const lines = content.replace(/\r\n/g, '\n').split('\n');
+            let i = 0;
+            let inCode = false;
+            let codeFence = '';
+            let codeLang = '';
+            let codeLines: string[] = [];
+
+            const parseInline = (text: string): InlineToken[] => {
+                const tokens: InlineToken[] = [];
+                let buffer = '';
+                const flush = () => {
+                    if (buffer) {
+                        tokens.push({ type: 'text', content: buffer });
+                        buffer = '';
+                    }
+                };
+                let idx = 0;
+                while (idx < text.length) {
+                    if (text.startsWith('**', idx)) {
+                        const end = text.indexOf('**', idx + 2);
+                        if (end !== -1) {
+                            flush();
+                            const inner = text.slice(idx + 2, end);
+                            if (inner) tokens.push({ type: 'bold', content: inner });
+                            idx = end + 2;
+                            continue;
+                        }
+                    }
+                    if (text[idx] === '*') {
+                        const end = text.indexOf('*', idx + 1);
+                        if (end !== -1) {
+                            flush();
+                            const inner = text.slice(idx + 1, end);
+                            if (inner) tokens.push({ type: 'italic', content: inner });
+                            idx = end + 1;
+                            continue;
+                        }
+                    }
+                    if (text[idx] === '`') {
+                        const end = text.indexOf('`', idx + 1);
+                        if (end !== -1) {
+                            flush();
+                            const inner = text.slice(idx + 1, end);
+                            if (inner) tokens.push({ type: 'code', content: inner });
+                            idx = end + 1;
+                            continue;
+                        }
+                    }
+                    buffer += text[idx];
+                    idx += 1;
+                }
+                if (buffer) tokens.push({ type: 'text', content: buffer });
+                return tokens.length ? tokens : [{ type: 'text', content: text }];
+            };
+
+            const isHeading = (line: string) => /^#{1,6}\s+/.test(line.trim());
+            const isList = (line: string) => /^(\s*[-*+]|\s*\d+\.)\s+/.test(line);
+            const isQuote = (line: string) => /^\s*>/.test(line);
+            const isHr = (line: string) => /^(\s*)([-*_])\2\2+(\s*)$/.test(line.trim());
+            const isFence = (line: string) => line.trim().startsWith('```');
+            const isBlockStart = (line: string) =>
+                isFence(line) || isHeading(line) || isList(line) || isQuote(line) || isHr(line);
+
+            while (i < lines.length) {
+                const line = lines[i];
+                const trimmed = line.trim();
+
+                if (inCode) {
+                    if (trimmed.startsWith(codeFence)) {
+                        blocks.push({ type: 'code', content: codeLines.join('\n'), language: codeLang });
+                        inCode = false;
+                        codeFence = '';
+                        codeLang = '';
+                        codeLines = [];
+                    } else {
+                        codeLines.push(line);
+                    }
+                    i += 1;
+                    continue;
+                }
+
+                if (!trimmed) {
+                    i += 1;
+                    continue;
+                }
+
+                if (isFence(line)) {
+                    inCode = true;
+                    codeFence = '```';
+                    codeLang = trimmed.slice(3).trim();
+                    codeLines = [];
+                    i += 1;
+                    continue;
+                }
+
+                if (isHr(line)) {
+                    blocks.push({ type: 'hr' });
+                    i += 1;
+                    continue;
+                }
+
+                if (isHeading(line)) {
+                    const match = line.match(/^(#{1,6})\s+(.*)$/);
+                    if (match) {
+                        blocks.push({
+                            type: 'heading',
+                            level: match[1].length,
+                            tokens: parseInline(match[2])
+                        });
+                    }
+                    i += 1;
+                    continue;
+                }
+
+                if (isList(line)) {
+                    const items: InlineToken[][] = [];
+                    const ordered = /^\s*\d+\./.test(line);
+                    while (i < lines.length && isList(lines[i])) {
+                        const itemLine = lines[i].replace(/^(\s*[-*+]|\s*\d+\.)\s+/, '');
+                        items.push(parseInline(itemLine));
+                        i += 1;
+                    }
+                    blocks.push({ type: 'list', items, ordered });
+                    continue;
+                }
+
+                if (isQuote(line)) {
+                    const quoteLines: InlineToken[][] = [];
+                    while (i < lines.length && isQuote(lines[i])) {
+                        const quoteLine = lines[i].replace(/^\s*>\s?/, '');
+                        quoteLines.push(parseInline(quoteLine));
+                        i += 1;
+                    }
+                    blocks.push({ type: 'quote', lines: quoteLines });
+                    continue;
+                }
+
+                const paragraphLines: InlineToken[][] = [];
+                while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) {
+                    paragraphLines.push(parseInline(lines[i]));
+                    i += 1;
+                }
+                if (paragraphLines.length) {
+                    blocks.push({ type: 'paragraph', lines: paragraphLines });
+                    continue;
+                }
+                i += 1;
+            }
+
+            if (inCode) {
+                blocks.push({ type: 'code', content: codeLines.join('\n'), language: codeLang });
+            }
+
+            return blocks;
         },
     }
 });
