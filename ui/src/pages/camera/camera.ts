@@ -3,7 +3,7 @@ import { Shell } from 'langningchen';
 import { showInfo, showError } from '../../components/ToastMessage';
 
 const CAMERA_DEVICE = '/dev/video29';
-const STORAGE_PATH = '/userdisk/Favorite';
+const STORAGE_PATH_UP = '/userdisk/Favorite';
 const MIN_SPACE_MB = 50;
 const PREVIEW_WIDTH = 1920;
 const PREVIEW_HEIGHT = 1080;
@@ -34,7 +34,6 @@ export default defineComponent({
   async mounted() {
     await this.initShell();
     // 确保存储目录存在
-    await this.ensureDirectory();
     
     // 延迟启动预览，等待页面渲染完成
     setTimeout(() => {
@@ -76,10 +75,10 @@ export default defineComponent({
       }
     },
 
-    async ensureDirectory() {
+    async ensureDirectory(value: string) {
         if (!this.shellInitialized) return;
         try {
-            await Shell.exec(`mkdir -p ${STORAGE_PATH}`);
+            await Shell.exec(`mkdir -p ${value}`);
         } catch (e) {
             console.error('Create directory failed', e);
         }
@@ -89,7 +88,7 @@ export default defineComponent({
         if (!this.shellInitialized) return false;
         try {
             // Check space
-            const dfRes = await Shell.exec(`df -m ${STORAGE_PATH} | awk 'NR==2 {print $4}'`);
+            const dfRes = await Shell.exec(`df -m ${STORAGE_PATH_UP} | awk 'NR==2 {print $4}'`);
             const freeMb = parseInt(dfRes.trim());
             
             if (isNaN(freeMb)) {
@@ -101,7 +100,7 @@ export default defineComponent({
             
             // Check writable
             try {
-                const testFile = `${STORAGE_PATH}/.test_${Date.now()}`;
+                const testFile = `${STORAGE_PATH_UP}/.test_${Date.now()}`;
                 await Shell.exec(`touch ${testFile} && rm ${testFile}`);
             } catch (e) {
                 showError('存储路径只读或无写入权限');
@@ -144,7 +143,7 @@ export default defineComponent({
         const rotation = this.getRotationParam();
         const rotationPipe = rotation ? ` ${rotation} !` : '';
         
-        const cmd = `gst-launch-1.0 v4l2src device=${CAMERA_DEVICE} ! video/x-raw,width=${PREVIEW_WIDTH},height=${PREVIEW_HEIGHT},framerate=30/1 !${rotationPipe} kmssink plane-id=75 sync=false force-aspect-ratio=true render-rectangle="<108,244,266,472>" > /dev/null 2>&1 & echo $!`;
+        const cmd = `gst-launch-1.0 v4l2src device=${CAMERA_DEVICE} ! video/x-raw,width=${PREVIEW_WIDTH},height=${PREVIEW_HEIGHT},framerate=30/1 ! kmssink plane-id=75 sync=false driver-name=rockchip force-aspect-ratio=true render-rectangle="<108,244,266,472>" > /userdata/applog/gst_preview.log 2>&1 & echo $!`;
         
         try {
             const result = await Shell.exec(cmd);
@@ -178,18 +177,17 @@ export default defineComponent({
         
         await this.stopPreview();
         
-        const filename = `IMG_${this.getTimestamp()}.jpg`;
-        const filepath = `${STORAGE_PATH}/${filename}`;
+        const STORAGE_PATH = `${STORAGE_PATH_UP}/${this.getTimestamp()}`;
         const rotation = this.getRotationParam();
         const rotationPipe = rotation ? ` ${rotation} !` : '';
-        
+        await this.ensureDirectory(STORAGE_PATH);
         // 拍照使用 filesink，不需要 kmssink，所以这部分 pipeline 相对独立
         // num-buffers=1
-        const cmd = `gst-launch-1.0 v4l2src device=${CAMERA_DEVICE} num-buffers=5 ! video/x-raw,width=${PREVIEW_WIDTH},height=${PREVIEW_HEIGHT} !${rotationPipe} jpegenc ! filesink location=${filepath}`;
+        const cmd = `gst-launch-1.0 v4l2src device=${CAMERA_DEVICE} num-buffers=60 ! video/x-raw,width=2592,height=1944 ! tee name=t ! queue ! kmssink plane-id=75 sync=false driver-name=rockchip force-aspect-ratio=true render-rectangle="<108,244,266,472>" t. ! queue max-size-buffers=30 leaky=2 ! queue ! jpegenc ! multifilesink location=${STORAGE_PATH}/%05d.jpg max-files=2 > /userdata/applog/gst_preview.log 2>&1`;
         
         try {
             await Shell.exec(cmd);
-            showInfo(`已保存: ${filename}`);
+            showInfo(`已保存: ${STORAGE_PATH}`);
         } catch (e) {
             showError('拍照失败: ' + e);
         }
