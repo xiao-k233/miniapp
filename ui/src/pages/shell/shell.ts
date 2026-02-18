@@ -23,10 +23,7 @@ import { Shell } from 'langningchen';
 import { showInfo } from '../../components/ToastMessage';
 
 // Shell API 类型定义
-interface ShellAPI {
-  initialize(): Promise<void>;
-  exec(cmd: string): Promise<string>;
-}
+type ShellAPI = typeof Shell;
 
 interface TerminalLine {
   id: string;
