@@ -82,7 +82,7 @@ export default defineComponent({
     toggleTorch() {
       this.torchOn = !this.torchOn;
       this.execShell(
-        `led_utils ${this.torchOn ? 1 : 0}`,
+        `len_onoff.sh ${this.torchOn ? 'on' : 'off'}`,
         this.torchOn ? '手电已打开' : '手电已关闭'
       );
     }
