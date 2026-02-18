@@ -9,4 +9,4 @@ jsapi/toolchains
 jsapi/src/IME/rawdict_data.hpp
 versionInfo.tar
 jsapi/versions.txt
-.vscode/settings.json
+.vscode
