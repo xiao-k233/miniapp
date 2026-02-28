@@ -5,8 +5,8 @@ import { showInfo, showError } from '../../components/ToastMessage';
 const CAMERA_DEVICE = '/dev/video29';
 const STORAGE_PATH_UP = '/userdisk/Favorite';
 const MIN_SPACE_MB = 50;
-const PREVIEW_WIDTH = 1920;
-const PREVIEW_HEIGHT = 1080;
+const PREVIEW_WIDTH = 1280;
+const PREVIEW_HEIGHT = 720;
 const SCREEN_WIDTH = 960;
 const SCREEN_HEIGHT = 266;
 const SCREEN_XOFFSET = 0;
@@ -20,6 +20,7 @@ export default defineComponent({
       previewPid: null as string | null,
       isPreviewing: false,
       shellInitialized: false,
+      isCapturing: false,
     };
   },
   
@@ -140,10 +141,8 @@ export default defineComponent({
         if (this.isPreviewing || !this.shellInitialized) return;
         
         const renderRect = this.getRenderRectangleParam();
-        const rotation = this.getRotationParam();
-        const rotationPipe = rotation ? ` ${rotation} !` : '';
         
-        const cmd = `gst-launch-1.0 v4l2src device=${CAMERA_DEVICE} ! video/x-raw,width=${PREVIEW_WIDTH},height=${PREVIEW_HEIGHT},framerate=30/1 ! kmssink plane-id=75 sync=false driver-name=rockchip force-aspect-ratio=true render-rectangle="<108,244,266,472>" > /userdata/applog/gst_preview.log 2>&1 & echo $!`;
+        const cmd = `gst-launch-1.0 v4l2src device=/dev/video30 ! video/x-raw,width=${PREVIEW_WIDTH},height=${PREVIEW_HEIGHT},framerate=30/1  ! kmssink plane-id=75 sync=false driver-name=rockchip force-aspect-ratio=true render-rectangle="<108,244,266,472>" > /userdata/applog/gst_preview.log 2>&1 & echo $!`;
         
         try {
             const result = await Shell.exec(cmd);
@@ -173,26 +172,26 @@ export default defineComponent({
     },
 
     async takePhoto() {
-        if (!(await this.checkStorage())) return;
-        
-        await this.stopPreview();
-        
-        const STORAGE_PATH = `${STORAGE_PATH_UP}/${this.getTimestamp()}`;
-        const rotation = this.getRotationParam();
-        const rotationPipe = rotation ? ` ${rotation} !` : '';
-        await this.ensureDirectory(STORAGE_PATH);
-        // 拍照使用 filesink，不需要 kmssink，所以这部分 pipeline 相对独立
-        // num-buffers=1
-        const cmd = `gst-launch-1.0 v4l2src device=${CAMERA_DEVICE} num-buffers=60 ! video/x-raw,width=2592,height=1944 ! tee name=t ! queue ! kmssink plane-id=75 sync=false driver-name=rockchip force-aspect-ratio=true render-rectangle="<108,244,266,472>" t. ! queue max-size-buffers=30 leaky=2 ! queue ! jpegenc ! multifilesink location=${STORAGE_PATH}/%05d.jpg max-files=2 > /userdata/applog/gst_preview.log 2>&1`;
-        
+        if (this.isCapturing) return;
+        this.isCapturing = true;
         try {
-            await Shell.exec(cmd);
-            showInfo(`已保存: ${STORAGE_PATH}`);
-        } catch (e) {
-            showError('拍照失败: ' + e);
+            if (!(await this.checkStorage())) return;
+            
+            const rotation = this.getRotationParam();
+            const rotationPipe = rotation ? ` ${rotation} !` : '';
+            await this.ensureDirectory(STORAGE_PATH_UP);
+            const cmd = `v4l2-ctl -d /dev/video29 --silent --set-fmt-video=width=2592,height=1944,pixelformat=UYVY --stream-skip=1 --stream-mmap=1 --stream-poll --stream-count=1 --stream-to=/tmp/gc.yuv`
+            
+            try {
+                await Shell.exec(cmd);
+                await Shell.exec(`ffmpeg -y -s 2592x1944 -pix_fmt uyvy422 -i /tmp/gc.yuv -frames:v 1 ${STORAGE_PATH_UP}/IMG_${this.getTimestamp()}.PNG`);
+                showInfo(`已保存: ${STORAGE_PATH_UP}/IMG_${this.getTimestamp()}.PNG`);  
+            } catch (e) {
+                showError('拍照失败: ' + e);
+            }
+        } finally {
+            this.isCapturing = false;
         }
-        
-        await this.startPreview();
     }
   }
 });

@@ -4,8 +4,8 @@
       <hole class="camera-hole"></hole>
     </div>
     <div class="controls-area">
-      <div class="btn btn-shutter" @click="takePhoto">
-        <text class="btn-text text-dark">拍照</text>
+      <div :class="['btn', 'btn-shutter', isCapturing ? 'btn-disabled' : '']" @click="takePhoto">
+        <text class="btn-text text-dark">{{ isCapturing ? '拍照中' : '拍照' }}</text>
       </div>
     </div>
     <ToastMessage />
